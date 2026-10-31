@@ -561,6 +561,13 @@ def _build_review_row(feedback_text, query, results):
         })
     return row
 
+# Auto-check and initialize PostgreSQL database schemas and data on cloud or local startup
+try:
+    from init_cloud_db import run_migration_if_needed
+    run_migration_if_needed()
+except Exception as _startup_db_err:
+    print('[STARTUP-DB] Migration check notice:', _startup_db_err)
+
 DATA_DF, FAQ_DF = load_data()
 SYMPTOMS = sorted(DATA_DF["complaint_category"].dropna().astype(str).unique().tolist())
 DISEASES = sorted(DATA_DF["department"].dropna().astype(str).unique().tolist())

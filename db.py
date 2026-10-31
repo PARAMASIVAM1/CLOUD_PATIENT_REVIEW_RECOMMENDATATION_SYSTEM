@@ -89,24 +89,41 @@ def get_connection():
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
 
+    port_num = int(DB_PORT) if DB_PORT else 5432
+
     try:
         return pg8000.dbapi.connect(
             user=DB_USER,
             password=DB_PASSWORD,
             host=DB_HOST,
-            port=DB_PORT,
+            port=port_num,
             database=DB_NAME,
             ssl_context=ssl_context,
         )
     except Exception as exc:
+        # Fallback 1: On internal private networks (e.g., Render dpg-xxx-a), SSL might be rejected; retry without SSL
+        if ssl_context is not None:
+            try:
+                return pg8000.dbapi.connect(
+                    user=DB_USER,
+                    password=DB_PASSWORD,
+                    host=DB_HOST,
+                    port=port_num,
+                    database=DB_NAME,
+                    ssl_context=None,
+                )
+            except Exception:
+                pass
+
+        # Fallback 2: Local postgres auto-start
         if ensure_postgres_running():
             return pg8000.dbapi.connect(
                 user=DB_USER,
                 password=DB_PASSWORD,
                 host=DB_HOST,
-                port=DB_PORT,
+                port=port_num,
                 database=DB_NAME,
-                ssl_context=ssl_context,
+                ssl_context=None,
             )
         raise exc
 
@@ -606,6 +623,39 @@ def create_appointment(data):
         return new_id, ref
     except Exception as exc:
         print(f"[DB-WARN] Error creating appointment: {exc}")
+        # Auto-heal: if relation "appointments" does not exist, initialize schemas and retry once
+        if "appointments" in str(exc).lower() or "does not exist" in str(exc).lower():
+            try:
+                print("[DB-AUTOHEAL] Attempting auto-recovery for missing appointments table...")
+                import init_system_db
+                init_system_db.setup_all_schemas()
+                con_retry = get_connection()
+                cur_retry = con_retry.cursor()
+                cur_retry.execute(sql, [
+                    ref,
+                    str(data.get("patient_email") or "patient@example.com").strip(),
+                    str(data.get("patient_name") or "Patient").strip(),
+                    str(data.get("patient_phone") or "").strip(),
+                    patient_age,
+                    str(data.get("patient_gender") or "Not specified").strip(),
+                    doc_id,
+                    doc_name,
+                    doc_email,
+                    str(data.get("hospital") or "Hospital").strip(),
+                    str(data.get("specialization") or "Specialist").strip(),
+                    apt_date,
+                    time_slot,
+                    symptoms,
+                    disease,
+                    str(data.get("notes") or "").strip()
+                ])
+                new_id = cur_retry.fetchone()[0]
+                con_retry.commit()
+                con_retry.close()
+                print(f"[DB-AUTOHEAL] Successfully recovered and created appointment #{new_id} ({ref})")
+                return new_id, ref
+            except Exception as retry_err:
+                print(f"[DB-AUTOHEAL-FAIL] Failed to auto-recover appointment creation: {retry_err}")
         return None, None
 
 

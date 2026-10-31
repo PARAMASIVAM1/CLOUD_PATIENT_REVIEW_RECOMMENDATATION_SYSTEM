@@ -1,18 +1,12 @@
 import pandas as pd
 import time
 import sys
+from pathlib import Path
 from db import get_connection
 
-print("=" * 60)
-print("HEALTHCARE AI SYSTEM - POSTGRESQL DATASET MIGRATION")
-print("=" * 60)
+WORKSPACE_DIR = Path(__file__).resolve().parent
 
-# Connect to database via db.get_connection() (supports local & Render cloud)
-con = get_connection()
-cur = con.cursor()
-print("[INFO] Successfully connected to PostgreSQL database!")
-
-def migrate_table(table_name, df):
+def migrate_table(cur, con, table_name, df):
     print(f"\n[TABLE] Processing Table: \"{table_name}\" ({len(df):,} rows, {len(df.columns)} columns)...")
     t0 = time.time()
     
@@ -74,32 +68,51 @@ def migrate_table(table_name, df):
     print(f"  [VERIFY] SELECT COUNT(*) FROM \"{table_name}\" -> {count:,} rows")
     assert count == len(df), f"Row count mismatch: expected {len(df)}, got {count}"
 
-# 1. Doctors Dataset
-print("\n[Step 1/4] Loading Doctors Dataset (Final_20Hospitals_Per_District.xlsx)...")
-t_read = time.time()
-df_doctors = pd.read_excel('Final_20Hospitals_Per_District.xlsx')
-print(f"  Loaded Excel in {time.time() - t_read:.2f}s")
-migrate_table("doctors", df_doctors)
+def run_all_migrations():
+    print("=" * 60)
+    print("HEALTHCARE AI SYSTEM - POSTGRESQL DATASET MIGRATION")
+    print("=" * 60)
 
-# 2. Patients Progress Dataset
-print("\n[Step 2/4] Loading Patients Dataset (patients_progress.xlsx)...")
-df_patients = pd.read_excel('patients_progress.xlsx')
-migrate_table("patients", df_patients)
+    con = get_connection()
+    cur = con.cursor()
+    print("[INFO] Successfully connected to PostgreSQL database!")
 
-# 3. Patient Reviews Dataset
-print("\n[Step 3/4] Loading Patient Reviews Dataset (patient_review.xlsx)...")
-df_reviews = pd.read_excel('patient_review.xlsx')
-migrate_table("patient_reviews", df_reviews)
+    try:
+        # 1. Doctors Dataset
+        print("\n[Step 1/4] Loading Doctors Dataset (Final_20Hospitals_Per_District.xlsx)...")
+        t_read = time.time()
+        excel_path = WORKSPACE_DIR / "Final_20Hospitals_Per_District.xlsx"
+        df_doctors = pd.read_excel(excel_path)
+        print(f"  Loaded Excel in {time.time() - t_read:.2f}s")
+        migrate_table(cur, con, "doctors", df_doctors)
 
-# 4. FAQ Dataset
-print("\n[Step 4/4] Loading FAQ Dataset (faq.csv)...")
-df_faq = pd.read_csv('faq.csv')
-migrate_table("faqs", df_faq)
+        # 2. Patients Progress Dataset
+        print("\n[Step 2/4] Loading Patients Dataset (patients_progress.xlsx)...")
+        df_patients = pd.read_excel(WORKSPACE_DIR / "patients_progress.xlsx")
+        migrate_table(cur, con, "patients", df_patients)
 
-cur.close()
-con.close()
+        # 3. Patient Reviews Dataset
+        print("\n[Step 3/4] Loading Patient Reviews Dataset (patient_review.xlsx)...")
+        df_reviews = pd.read_excel(WORKSPACE_DIR / "patient_review.xlsx")
+        migrate_table(cur, con, "patient_reviews", df_reviews)
 
-print("\n" + "=" * 60)
-print("[SUCCESS] ALL 4 DATASETS SUCCESSFULLY MIGRATED TO POSTGRESQL!")
-print("=" * 60)
+        # 4. FAQ Dataset
+        print("\n[Step 4/4] Loading FAQ Dataset (faq.csv)...")
+        df_faq = pd.read_csv(WORKSPACE_DIR / "faq.csv")
+        migrate_table(cur, con, "faqs", df_faq)
 
+        print("\n" + "=" * 60)
+        print("[SUCCESS] ALL 4 DATASETS SUCCESSFULLY MIGRATED TO POSTGRESQL!")
+        print("=" * 60)
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            con.close()
+        except Exception:
+            pass
+
+if __name__ == "__main__":
+    run_all_migrations()

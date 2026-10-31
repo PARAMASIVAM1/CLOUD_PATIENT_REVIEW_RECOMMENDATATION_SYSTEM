@@ -3,8 +3,8 @@ services:
     name: healthcare-ai-portal
     runtime: python
     plan: free
-    buildCommand: "pip install -r requirements.txt && python init_cloud_db.py"
-    startCommand: "gunicorn app:app --workers 2 --timeout 120"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python init_cloud_db.py && gunicorn app:app --workers 2 --timeout 120"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -20,4 +20,3 @@ databases:
     databaseName: healthcare_db
     user: healthcare_user
     plan: free
-
