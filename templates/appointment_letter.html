@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointment Letter - {{ appointment.appointment_ref }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .letter-container {
+            max-width: 820px;
+            margin: 30px auto;
+            background: #ffffff;
+            color: #1e293b;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        .letter-header {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            color: white;
+            padding: 30px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid #38bdf8;
+        }
+        .letter-header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            letter-spacing: -0.5px;
+        }
+        .letter-header p {
+            margin: 4px 0 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+        .letter-ref-box {
+            text-align: right;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 12px 18px;
+            border-radius: 10px;
+            backdrop-filter: blur(4px);
+        }
+        .letter-ref-box .ref-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.85;
+        }
+        .letter-ref-box .ref-val {
+            font-size: 1.15rem;
+            font-weight: 700;
+            font-family: monospace;
+        }
+        .letter-body {
+            padding: 40px;
+        }
+        .status-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-radius: 10px;
+            margin-bottom: 28px;
+            font-weight: 600;
+        }
+        .status-Pending { background: #fef3c7; color: #92400e; border-left: 6px solid #f59e0b; }
+        .status-Approved { background: #dcfce7; color: #166534; border-left: 6px solid #22c55e; }
+        .status-Completed { background: #e0f2fe; color: #075985; border-left: 6px solid #0284c7; }
+        .status-Rejected { background: #fee2e2; color: #991b1b; border-left: 6px solid #ef4444; }
+
+        .letter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+        .info-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .info-card h3 {
+            margin-top: 0;
+            margin-bottom: 14px;
+            font-size: 1rem;
+            color: #0369a1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.92rem;
+        }
+        .info-row .label { color: #64748b; }
+        .info-row .val { font-weight: 600; color: #0f172a; text-align: right; }
+
+        .clinical-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 28px;
+        }
+        .clinical-section h3 {
+            margin-top: 0;
+            color: #0369a1;
+            font-size: 1rem;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .instruction-box {
+            background: #fffbeb;
+            border: 1px dashed #f59e0b;
+            padding: 16px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: #78350f;
+            margin-bottom: 28px;
+        }
+        .stamp-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 35px;
+            padding-top: 25px;
+            border-top: 2px dashed #cbd5e1;
+        }
+        .hospital-seal {
+            border: 2px solid #0284c7;
+            color: #0284c7;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transform: rotate(-3deg);
+            display: inline-block;
+        }
+        .signature-box {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #475569;
+        }
+        .signature-line {
+            width: 180px;
+            border-bottom: 1px solid #94a3b8;
+            margin-bottom: 6px;
+        }
+        .actions-bar {
+            background: #f1f5f9;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        @media print {
+            body { background: white; }
+            .actions-bar, header, nav, footer { display: none !important; }
+            .letter-container { box-shadow: none; border: none; margin: 0; max-width: 100%; }
+        }
+    </style>
+</head>
+<body style="background: #f8fafc; padding: 20px;">
+
+    <div class="letter-container">
+        <!-- Header -->
+        <div class="letter-header">
+            <div>
+                <h1>{{ appointment.hospital }}</h1>
+                <p>Official Patient Consultation & Appointment Letter</p>
+            </div>
+            <div class="letter-ref-box">
+                <div class="ref-label">Reference ID</div>
+                <div class="ref-val">{{ appointment.appointment_ref }}</div>
+            </div>
+        </div>
+
+        <div class="letter-body">
+            <!-- Status Banner -->
+            <div class="status-banner status-{{ appointment.status }}">
+                <span>
+                    {% if appointment.status == 'Approved' %}
+                    ✅ APPOINTMENT CONFIRMED & SCHEDULED
+                    {% elif appointment.status == 'Pending' %}
+                    ⏳ APPOINTMENT REQUEST PENDING DOCTOR CONFIRMATION
+                    {% elif appointment.status == 'Completed' %}
+                    🎉 CONSULTATION & TREATMENT COMPLETED
+                    {% elif appointment.status == 'Rejected' %}
+                    ❌ APPOINTMENT CANCELLED / DECLINED
+                    {% else %}
+                    📋 STATUS: {{ appointment.status }}
+                    {% endif %}
+                </span>
+                <span style="font-size: 0.85rem; font-weight: normal;">Issued on: {{ appointment.created_at.strftime('%d-%b-%Y %I:%M %p') if appointment.created_at else 'Today' }}</span>
+            </div>
+
+            <!-- Doctor Testing Workflow Card -->
+            {% set clean_doc_title = appointment.doctor_name | replace('DR.', '') | replace('Dr.', '') | replace('dr.', '') | trim %}
+            {% if appointment.status == 'Pending' %}
+            <div class="test-helper-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px solid #86efac; border-radius: 12px; padding: 18px 22px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(22, 101, 52, 0.08);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                    <div>
+                        <h4 style="margin: 0 0 6px 0; color: #15803d; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                            🩺 Doctor Approval & Portal Access (Dr. {{ clean_doc_title }})
+                        </h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: #166534; line-height: 1.6;">
+                            This appointment request is awaiting doctor confirmation.
+                            <br>
+                            <strong>Doctor Login:</strong> <code id="docLoginEmail" style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; color: #14532d;">{{ appointment.doctor_email or appointment.doctor_name }}</code>
+                            &nbsp;|&nbsp;
+                            <strong>Password:</strong> <code style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; color: #14532d;">doctor123</code>
+                            &nbsp;
+                            <button type="button" onclick="navigator.clipboard.writeText('{{ appointment.doctor_email or appointment.doctor_name }}'); this.innerText='✓ Copied!'; setTimeout(() => this.innerText='📋 Copy ID', 2000);" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 5px; background: #bbf7d0; border: 1px solid #86efac; color: #14532d; cursor: pointer; font-weight: 700;">📋 Copy ID</button>
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <form method="POST" action="/test/switch-doctor" style="margin: 0;">
+                            <input type="hidden" name="doctor_id" value="{{ appointment.doctor_id }}">
+                            <input type="hidden" name="doctor_name" value="{{ appointment.doctor_name }}">
+                            <input type="hidden" name="doctor_email" value="{{ appointment.doctor_email }}">
+                            <button type="submit" class="button" style="background: linear-gradient(135deg, #16a34a, #15803d); color: white; padding: 11px 18px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.92rem; cursor: pointer; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);">
+                                👨‍⚕️ Switch to Dr. {{ clean_doc_title }} & Approve
+                            </button>
+                        </form>
+                        <a href="/login?role=doctor" target="_blank" style="font-size: 0.85rem; color: #047857; text-decoration: underline; font-weight: 600;">Manual Login &rarr;</a>
+                    </div>
+                </div>
+            </div>
+            {% elif appointment.status == 'Approved' %}
+            <div class="test-helper-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px solid #86efac; border-radius: 12px; padding: 14px 20px; margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h4 style="margin: 0 0 4px 0; color: #15803d; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                            ✅ Consultation Confirmed by Dr. {{ clean_doc_title }}
+                        </h4>
+                        <p style="margin: 0; font-size: 0.88rem; color: #166534;">
+                            Doctor Account: <code style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 5px; font-weight: 700; color: #14532d;">{{ appointment.doctor_email or appointment.doctor_name }}</code> &nbsp;|&nbsp; Password: <code style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 5px; font-weight: 700; color: #14532d;">doctor123</code>
+                        </p>
+                    </div>
+                    <form method="POST" action="/test/switch-doctor" style="margin: 0;">
+                        <input type="hidden" name="doctor_id" value="{{ appointment.doctor_id }}">
+                        <input type="hidden" name="doctor_name" value="{{ appointment.doctor_name }}">
+                        <input type="hidden" name="doctor_email" value="{{ appointment.doctor_email }}">
+                        <button type="submit" class="button" style="background: #15803d; color: white; padding: 8px 14px; border: none; border-radius: 7px; font-weight: 700; font-size: 0.85rem; cursor: pointer;">
+                            🩺 Open Dr. {{ clean_doc_title }} Dashboard
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Two Columns Grid -->
+            <div class="letter-grid">
+                <!-- Patient Card -->
+                <div class="info-card">
+                    <h3>👤 Patient Particulars</h3>
+                    <div class="info-row">
+                        <span class="label">Patient Name:</span>
+                        <span class="val">{{ appointment.patient_name }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Registered Email:</span>
+                        <span class="val">{{ appointment.patient_email }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Age / Gender:</span>
+                        <span class="val">{{ appointment.patient_age }} Yrs / {{ appointment.patient_gender }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Contact Phone:</span>
+                        <span class="val">{{ appointment.patient_phone or 'Provided on file' }}</span>
+                    </div>
+                </div>
+
+                <!-- Doctor Card -->
+                <div class="info-card">
+                    <h3>🩺 Consulting Specialist</h3>
+                    <div class="info-row">
+                        <span class="label">Doctor Name:</span>
+                        <span class="val">{{ appointment.doctor_name }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Doctor Login Email:</span>
+                        <span class="val" style="color: #0369a1; font-family: monospace; font-size: 0.92rem; font-weight: 700;">{{ appointment.doctor_email }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Hospital:</span>
+                        <span class="val">{{ appointment.hospital }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Specialization:</span>
+                        <span class="val">{{ appointment.specialization }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Consultation Date:</span>
+                        <span class="val" style="color: #0369a1;">{{ appointment.appointment_date }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Time Slot:</span>
+                        <span class="val" style="color: #0369a1;">{{ appointment.appointment_time }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clinical Information -->
+            <div class="clinical-section">
+                <h3>📋 Medical Case Information</h3>
+                <div style="margin-bottom: 10px;">
+                    <strong style="color: #475569; font-size: 0.9rem;">Reported Diagnosis / Condition:</strong>
+                    <div style="font-size: 1rem; font-weight: 600; color: #0f172a; margin-top: 2px;">{{ appointment.disease or 'General Medical Evaluation' }}</div>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <strong style="color: #475569; font-size: 0.9rem;">Primary Symptoms:</strong>
+                    <div style="font-size: 0.95rem; color: #334155; margin-top: 2px;">{{ appointment.symptoms or 'Standard consultation symptoms' }}</div>
+                </div>
+                {% if appointment.notes %}
+                <div>
+                    <strong style="color: #475569; font-size: 0.9rem;">Patient Remarks / Notes:</strong>
+                    <div style="font-size: 0.92rem; color: #475569; margin-top: 2px;">{{ appointment.notes }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Doctor Notes / Prescription if available -->
+            {% if appointment.doctor_notes or appointment.prescription %}
+            <div class="clinical-section" style="background: #f0fdf4; border-color: #bbf7d0;">
+                <h3 style="color: #15803d; border-color: #bbf7d0;">👨‍⚕️ Doctor's Clinical Remarks & Prescription</h3>
+                {% if appointment.doctor_notes %}
+                <div style="margin-bottom: 12px;">
+                    <strong style="color: #166534; font-size: 0.9rem;">Clinical Instructions:</strong>
+                    <div style="color: #14532d; font-size: 0.95rem; margin-top: 2px;">{{ appointment.doctor_notes }}</div>
+                </div>
+                {% endif %}
+                {% if appointment.prescription %}
+                <div>
+                    <strong style="color: #166534; font-size: 0.9rem;">Prescribed Regimen / Advice:</strong>
+                    <div style="color: #14532d; font-size: 0.95rem; margin-top: 2px; white-space: pre-line;">{{ appointment.prescription }}</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Instructions -->
+            <div class="instruction-box">
+                <strong>📌 Important Patient Instructions:</strong>
+                <ul style="margin: 6px 0 0 20px; padding: 0;">
+                    <li>Please present this digital or printed consultation letter at the hospital reception.</li>
+                    <li>Kindly arrive 15 minutes prior to your allocated slot for registration and vitals triage.</li>
+                    <li>Bring previous diagnostic reports, scans, and ongoing prescriptions for reference.</li>
+                </ul>
+            </div>
+
+            <!-- Verification Stamp -->
+            <div class="stamp-area">
+                <div class="hospital-seal">
+                    AUTHENTICATED DOCUMENT<br>
+                    {{ appointment.hospital[:20] }}
+                </div>
+                <div class="signature-box">
+                    <div class="signature-line"></div>
+                    <div>Authorized Hospital Registrar / Specialist</div>
+                    <div style="font-size: 0.8rem; color: #94a3b8;">Digitally Validated Healthcare Record</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="actions-bar">
+            <div>
+                <a href="/my-appointments" style="color: #0284c7; text-decoration: none; font-weight: 600; font-size: 0.95rem;">← Back to My Appointments</a>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button onclick="window.print()" class="button" style="background: #0284c7; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                    🖨️ Print / Save as PDF
+                </button>
+                {% if appointment.status == 'Completed' and not appointment.has_feedback %}
+                <a href="/appointment/{{ appointment.id }}/feedback" class="button" style="background: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: 600;">
+                    ⭐ Leave Treatment Feedback
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+

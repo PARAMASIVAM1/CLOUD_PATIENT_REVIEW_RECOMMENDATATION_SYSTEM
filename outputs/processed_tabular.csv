@@ -1,0 +1,26 @@
+doctor_id,doctor_name,specialization,department,experience_years,qualification,consultation_fee,location,body_part,average_rating,complaint_category
+1,Dr. Anitha,Opthalmology,Eyes,12,MBBS,900,Chennai,Eyes,4.8,Doctor Behaviour
+2,Dr. Vijay,ENT,Nose,9,MS,850,Chennai,Nose,4.6,Waiting Time
+3,Dr. Priya,Dentistry,Teeth,10,BDS,1200,Coimbatore,Teeth,4.5,Fees
+4,Dr. Ravi,Orthopedics,Bones,15,MS,1400,Chennai,Bones,4.9,Treatment Quality
+5,Dr. Meena,Dermatology,Skin,8,MD,1100,Coimbatore,Skin,4.2,Fees
+6,Dr. Kumar,Cardiology,Heart,18,MD,1600,Chennai,Heart,4.7,Doctor Behaviour
+7,Dr. Renu,Opthalmology,Eyes,7,MBBS,950,Trichy,Eyes,4.1,Waiting Time
+8,Dr. Arjun,ENT,Nose,11,MS,780,Madurai,Nose,4.4,Treatment Quality
+9,Dr. Sangeetha,Dentistry,Teeth,13,BDS,1300,Salem,Teeth,4.3,Doctor Behaviour
+10,Dr. Hari,Orthopedics,Bones,20,MS,1500,Coimbatore,Bones,4.6,Facility
+11,Dr. Kavya,Dermatology,Skin,6,MD,1000,Chennai,Skin,4.0,Waiting Time
+12,Dr. Sanjay,Cardiology,Heart,14,MD,1700,Madurai,Heart,4.5,Doctor Behaviour
+13,Dr. Amrita,Opthalmology,Eyes,9,MBBS,920,Salem,Eyes,4.2,Facility
+14,Dr. Naveen,ENT,Nose,5,MS,800,Chennai,Nose,4.0,Doctor Behaviour
+15,Dr. Suresh,Dentistry,Teeth,16,BDS,1250,Trichy,Teeth,4.7,Facility
+16,Dr. Latha,Orthopedics,Bones,13,MS,1450,Chennai,Bones,4.4,Waiting Time
+17,Dr. Preethi,Dermatology,Skin,10,MD,1050,Salem,Skin,4.3,Fees
+18,Dr. Karthik,Cardiology,Heart,17,MD,1650,Coimbatore,Heart,4.8,Doctor Behaviour
+19,Dr. Nisha,Opthalmology,Eyes,8,MBBS,880,Madurai,Eyes,4.1,Access
+20,Dr. Ajay,ENT,Nose,12,MS,820,Coimbatore,Nose,4.2,Facility
+21,Dr. Tanuja,Dentistry,Teeth,11,BDS,1180,Chennai,Teeth,4.5,Doctor Behaviour
+22,Dr. Gopal,Orthopedics,Bones,19,MS,1550,Madurai,Bones,4.7,Facility
+23,Dr. Shalini,Dermatology,Skin,7,MD,980,Chennai,Skin,4.1,Treatment Quality
+24,Dr. Raghav,Cardiology,Heart,16,MD,1680,Salem,Heart,4.6,Doctor Behaviour
+25,Dr. Nandini,Opthalmology,Eyes,10,MBBS,940,Coimbatore,Eyes,4.3,Facility

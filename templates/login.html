@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="login-shell">
+    <div class="login-card login-card--feature">
+        <span class="eyebrow">Healthcare AI Platform</span>
+        <h1>Find the right doctor with confidence.</h1>
+        <p>
+            Access multilingual medical guidance, intelligent specialist discovery, and a curated
+            doctor search experience built for faster healthcare decisions.
+        </p>
+
+        <div class="hero__stats">
+            <div class="hero-stat">
+                <strong>AI-assisted</strong>
+                <span>Condition and symptom exploration</span>
+            </div>
+            <div class="hero-stat">
+                <strong>Trusted profiles</strong>
+                <span>Doctor recommendations with ratings</span>
+            </div>
+            <div class="hero-stat">
+                <strong>Location aware</strong>
+                <span>Search by city and compare options</span>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h3>What you can do</h3>
+            <ul>
+                <li>Search specialists by disease, symptom, location, and consultation budget.</li>
+                <li>Use the AI medical query assistant for general health guidance.</li>
+                <li>Review top doctors, ratings, hospitals, and location-based results.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="login-card">
+        <span class="eyebrow">Secure access</span>
+        <h2>Login to Healthcare Portal</h2>
+        <p class="muted">Enter your details to continue to the recommendation dashboard.</p>
+
+        {% if session.get('logged_in') %}
+        <div style="background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 10px 14px; margin: 12px 0 16px; font-size: 0.88rem; color: #7dd3fc; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div>
+                🟢 Active Session: <strong>{{ session.get('user_name', 'User') }}</strong> (<span style="text-transform: capitalize;">{{ session.get('user_role', 'user') }}</span>)
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                {% if session.get('user_role') == 'admin' %}
+                <a href="/admin/dashboard" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">Open Dashboard &rarr;</a>
+                {% elif session.get('user_role') == 'doctor' %}
+                <a href="/doctor/dashboard" style="color: #22c55e; font-weight: 700; text-decoration: underline;">Open Dashboard &rarr;</a>
+                {% else %}
+                <a href="/home" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">Open Home &rarr;</a>
+                {% endif %}
+                <a href="/logout" style="color: #f87171; font-weight: 600; background: rgba(244,63,94,0.15); padding: 2px 8px; border-radius: 6px; text-decoration: none;">Switch Account</a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if login_error %}
+        <p class="alert-box" style="color: #ff6b6b; background: rgba(255, 107, 107, 0.15); border: 1px solid rgba(255, 107, 107, 0.3); padding: 8px 12px; border-radius: 8px; margin: 12px 0;">⚠️ {{ login_error }}</p>
+        {% endif %}
+
+        <form action="/login" method="post" autocomplete="off" id="loginForm">
+            <!-- 1. Email Address / Identifier -->
+            <label for="email" id="emailLabel" style="display: block; margin-bottom: 6px; font-weight: 600; color: #e2e8f0;">Email Address</label>
+            <input id="email" type="text" name="email" value="{{ login_email or '' }}" placeholder="Enter registered email or doctor name" autocomplete="off" required style="margin-bottom: 14px;" />
+
+            <!-- 2. Select Role -->
+            <label for="role" style="display: block; margin-bottom: 6px; font-weight: 600; color: #e2e8f0;">
+                Select Role
+                <span style="font-size: 0.8rem; font-weight: normal; color: #38bdf8; margin-left: 6px;">(User, Doctor, or Admin)</span>
+            </label>
+            <div style="margin-bottom: 16px;">
+                <select id="role" name="role" required style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(10, 18, 32, 0.9); color: #ffffff; font-size: 0.95rem; font-weight: 600; cursor: pointer;">
+                    <option value="user" {% if selected_role == 'user' or not selected_role %}selected{% endif %} style="background: #0b1524; color: #ffffff;">👤 User / Patient</option>
+                    <option value="doctor" {% if selected_role == 'doctor' %}selected{% endif %} style="background: #0b1524; color: #ffffff;">🩺 Doctor</option>
+                    <option value="admin" {% if selected_role == 'admin' %}selected{% endif %} style="background: #0b1524; color: #ffffff;">🛡️ System Admin</option>
+                </select>
+            </div>
+
+            <!-- 3. Password -->
+            <label for="password" style="display: block; margin-bottom: 6px; font-weight: 600; color: #e2e8f0;">Password</label>
+            <input id="password" type="password" name="password" placeholder="Enter password" autocomplete="off" required style="margin-bottom: 16px;" />
+
+            <button type="submit" style="width: 100%; padding: 13px; font-size: 1rem; font-weight: 700; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);">
+                Sign In to Portal
+            </button>
+        </form>
+
+        <!-- Role Access Helper Box with 1-Click Credentials -->
+        <div style="background: rgba(15, 25, 44, 0.7); border: 1px solid rgba(56, 189, 248, 0.22); border-radius: 10px; padding: 14px; margin-top: 18px; font-size: 0.84rem; color: #cbd5e1;">
+            <div style="font-weight: 700; margin-bottom: 8px; color: #38bdf8; display: flex; align-items: center; justify-content: space-between;">
+                <span>🔑 Quick Portal Access & Test Logins:</span>
+            </div>
+            <div style="margin-bottom: 7px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <span>• <strong>User / Patient:</strong> <code>patient@example.com</code> / <code>password123</code></span>
+                <button type="button" onclick="fillCreds('patient@example.com', 'password123', 'user')" style="padding: 3px 8px; font-size: 0.74rem; border-radius: 6px; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.35); color: #7dd3fc; cursor: pointer; font-weight: 600;">Fill</button>
+            </div>
+            
+            <div style="margin-bottom: 9px; padding: 6px 8px; background: rgba(34, 197, 94, 0.08); border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.2);">
+                <div style="color: #86efac; font-weight: 700; font-size: 0.8rem; margin-bottom: 4px;">
+                    • 🩺 Any Doctor Login (Pass: <code>doctor123</code>): Type ANY doctor's Name or Email!
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                    <button type="button" onclick="fillCreds('drvikrampillai243@hospital.com', 'doctor123', 'doctor')" style="padding: 2px 7px; font-size: 0.72rem; border-radius: 5px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); color: #86efac; cursor: pointer;">Dr. Vikram Pillai</button>
+                    <button type="button" onclick="fillCreds('DR.Harish Rao1361', 'doctor123', 'doctor')" style="padding: 2px 7px; font-size: 0.72rem; border-radius: 5px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); color: #86efac; cursor: pointer;">Dr. Harish Rao (Heart)</button>
+                    <button type="button" onclick="fillCreds('DR.Isha Rao13412', 'doctor123', 'doctor')" style="padding: 2px 7px; font-size: 0.72rem; border-radius: 5px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); color: #86efac; cursor: pointer;">Dr. Isha Rao (Eye)</button>
+                    <button type="button" onclick="fillCreds('DR.Dinesh Menon15527', 'doctor123', 'doctor')" style="padding: 2px 7px; font-size: 0.72rem; border-radius: 5px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); color: #86efac; cursor: pointer;">Dr. Dinesh Menon (Skin)</button>
+                    <button type="button" onclick="fillCreds('DR.Gopal Gupta15494', 'doctor123', 'doctor')" style="padding: 2px 7px; font-size: 0.72rem; border-radius: 5px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); color: #86efac; cursor: pointer;">Dr. Gopal Gupta (Lungs)</button>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <span>• <strong>System Admin:</strong> <code>admin@healthcare.com</code> / <code>admin123</code></span>
+                <button type="button" onclick="fillCreds('admin@healthcare.com', 'admin123', 'admin')" style="padding: 3px 8px; font-size: 0.74rem; border-radius: 6px; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.35); color: #fde047; cursor: pointer; font-weight: 600;">Fill</button>
+            </div>
+        </div>
+
+        <div class="actions" style="margin-top: 16px; display: flex; gap: 8px;">
+            <a class="button secondary" href="/enroll" style="flex: 1; text-align: center;">New Patient? Enroll</a>
+            <a class="button secondary" href="/doctor/register" style="flex: 1; text-align: center; color: #38bdf8;">Doctor Join</a>
+        </div>
+
+        <script>
+        function selectRole(role) {
+            const roleSelect = document.getElementById('role');
+            if (roleSelect) {
+                roleSelect.value = role;
+                updateRoleUI(role);
+            }
+        }
+
+        function updateRoleUI(role) {
+            const emailInput = document.getElementById('email');
+            const emailLabel = document.getElementById('emailLabel');
+            if (role === 'admin') {
+                if (emailLabel) emailLabel.textContent = 'Admin Email Address';
+                if (emailInput && !emailInput.value) emailInput.placeholder = 'admin@healthcare.com';
+            } else if (role === 'doctor') {
+                if (emailLabel) emailLabel.textContent = 'Doctor Email, Name, or ID';
+                if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. Dr. Harish Rao or drharishrao1361@hospital.com';
+            } else {
+                if (emailLabel) emailLabel.textContent = 'Patient Email Address';
+                if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. patient@example.com';
+            }
+        }
+
+        function fillCreds(email, password, role) {
+            selectRole(role);
+            document.getElementById('email').value = email;
+            document.getElementById('password').value = password;
+        }
+
+        document.getElementById('role').addEventListener('change', function() {
+            updateRoleUI(this.value);
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const roleSelect = document.getElementById('role');
+            if (roleSelect) {
+                updateRoleUI(roleSelect.value);
+            }
+        });
+        </script>
+
+    </div>
+</section>
+
+{% endblock %}

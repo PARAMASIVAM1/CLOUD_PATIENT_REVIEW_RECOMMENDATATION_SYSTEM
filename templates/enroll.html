@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="login-shell">
+    <div class="login-card">
+        <span class="eyebrow">Patient Enrollment</span>
+        <h2>Enroll New Patient</h2>
+        <p class="muted">Fill in your details to create an account.</p>
+
+        {% if enroll_error %}
+        <p class="alert-box" style="color: #ff6b6b; background: rgba(255, 107, 107, 0.15); border: 1px solid rgba(255, 107, 107, 0.3); padding: 8px 12px; border-radius: 8px; margin: 12px 0;">⚠️ {{ enroll_error }}</p>
+        {% endif %}
+        {% if enroll_success %}
+        <p class="alert-box" style="color: #2ecc71; background: rgba(46, 204, 113, 0.15); border: 1px solid rgba(46, 204, 113, 0.3); padding: 8px 12px; border-radius: 8px; margin: 12px 0;">✓ {{ enroll_success }}</p>
+        {% endif %}
+
+        <form action="/enroll" method="post">
+            <label for="first_name">First Name</label>
+            <input id="first_name" type="text" name="first_name" placeholder="First name" required />
+
+            <label for="last_name">Last Name</label>
+            <input id="last_name" type="text" name="last_name" placeholder="Last name" required />
+
+            <label for="enroll_email">Email Address</label>
+            <input id="enroll_email" type="email" name="email" placeholder="Email" required />
+
+            <label for="enroll_password">Password</label>
+            <input id="enroll_password" type="password" name="password" placeholder="Password" required />
+
+            <label for="confirm_password">Confirm Password</label>
+            <input id="confirm_password" type="password" name="confirm_password" placeholder="Confirm password" required />
+
+            <label for="date_of_birth">Date of Birth</label>
+            <input id="date_of_birth" type="date" name="date_of_birth" required />
+
+            <label for="country">Country</label>
+            <select id="country" name="country" required>
+                <option value="">Select country</option>
+                <option value="India">India</option>
+                <option value="United States">United States</option>
+                <option value="United Kingdom">United Kingdom</option>
+                <option value="Canada">Canada</option>
+                <option value="Australia">Australia</option>
+                <option value="Germany">Germany</option>
+                <option value="France">France</option>
+                <option value="Singapore">Singapore</option>
+                <option value="Malaysia">Malaysia</option>
+                <option value="United Arab Emirates">United Arab Emirates</option>
+            </select>
+
+            <label for="age">Age</label>
+            <input id="age" type="number" name="age" min="0" max="120" placeholder="Age" readonly />
+
+            <button type="submit">Enroll</button>
+        </form>
+
+        <div class="actions" style="margin-top: 16px;">
+            <a class="button secondary" href="/">Back to Login</a>
+        </div>
+    </div>
+</section>
+
+<script>
+    const dobInput = document.getElementById('date_of_birth');
+    const ageInput = document.getElementById('age');
+    if (dobInput && ageInput) {
+        dobInput.addEventListener('change', () => {
+            const value = dobInput.value;
+            if (!value) {
+                ageInput.value = '';
+                return;
+            }
+            const dob = new Date(value);
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+                age -= 1;
+            }
+            ageInput.value = Math.max(age, 0);
+        });
+    }
+</script>
+{% endblock %}

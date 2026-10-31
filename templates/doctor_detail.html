@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+    <a href="/search" class="button secondary" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 0.88rem; font-weight: 600;">
+        &larr; Back to Doctor Results
+    </a>
+    <a href="/home" style="color: #0284c7; font-size: 0.88rem; text-decoration: underline; font-weight: 600;">
+        Choose Another Body Part &rarr;
+    </a>
+</div>
+
+<section class="profile-hero">
+    <div>
+        <p class="eyebrow">{{ doctor.specialization }}</p>
+        <h1>{{ doctor.doctor_name }}</h1>
+        <p>{{ doctor.department }}{% if doctor.location %} • {{ doctor.location }}{% endif %}</p>
+    </div>
+    <div class="doctor-card__score">
+        <span data-i18n="doctor_recommendation_score">Recommendation Score</span>
+        <strong>{{ doctor.recommendation_score if doctor.get('recommendation_score') is not none else 'N/A' }}</strong>
+    </div>
+</section>
+
+<section class="profile-grid">
+    <article class="form-panel">
+        <h2 data-i18n="doctor_professional_overview">Professional overview</h2>
+        <div class="badge-list">
+            <span class="badge"><strong data-i18n="doctor_experience">Experience:</strong> {{ doctor.experience_years }} years</span>
+            <span class="badge"><strong data-i18n="results_hospital_name">Hospital:</strong> {{ doctor.hospital }}</span>
+            <span class="badge"><strong data-i18n="doctor_qualification">Qualification:</strong> {{ doctor.qualification }}</span>
+            <span class="badge"><strong data-i18n="doctor_location">Location:</strong> {{ doctor.location }}</span>
+            <span class="badge"><strong data-i18n="doctor_consultation_fee">Consultation Fee:</strong> ₹{{ doctor.consultation_fee }}</span>
+            {% if doctor.get('average_rating') is not none %}
+            <span class="badge"><strong data-i18n="doctor_average_rating">Average Rating:</strong> {{ doctor.average_rating }} / 5</span>
+            {% endif %}
+            <span class="badge"><strong data-i18n="doctor_sentiment">Sentiment:</strong> {{ doctor.sentiment_label }}</span>
+            <span class="badge"><strong data-i18n="results_review_category">Review Category:</strong> {{ doctor.complaint_category }}</span>
+        </div>
+
+        <div class="info-panel">
+            <p><strong data-i18n="results_specialization">Specialization:</strong> {{ doctor.specialization }}</p>
+            <p><strong data-i18n="results_department">Department:</strong> {{ doctor.department }}</p>
+            <p><strong data-i18n="results_hospital_name">Hospital Name:</strong> {{ doctor.hospital }}</p>
+            <p><strong>District:</strong> {{ doctor.location }}</p>
+            <div style="margin-top: 10px; padding: 10px 14px; background: rgba(14, 165, 233, 0.08); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: 8px; font-size: 0.9rem;">
+                <span style="color: #0284c7; font-weight: 700;">🩺 Doctor Portal Access (Testing / Direct Login):</span>
+                <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                    <span>Login Email / ID: <code style="font-weight: 700; color: #0369a1;">{{ doctor.email or (doctor.doctor_name | lower | replace(' ', '') ~ '@hospital.com') }}</code></span>
+                    <span>Password: <code style="font-weight: 700; color: #0369a1;">doctor123</code></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="hospital-map-section" style="margin-top: 20px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 6px;">📍 Hospital Location & Directions</h3>
+            <p class="muted" style="margin-bottom: 12px; font-size: 0.9rem;"><strong>{{ doctor.hospital }}</strong>, {{ doctor.location }} District</p>
+            <div id="doctor-hospital-map" style="height: 260px; width: 100%; border-radius: 12px; border: 1px solid #cbd5e1; z-index: 1;"></div>
+            <div class="actions" style="margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <a class="button secondary" href="https://www.google.com/maps/search/?api=1&query={{ (doctor.hospital ~ ' ' ~ doctor.location)|urlencode }}" target="_blank" rel="noopener noreferrer">🧭 Get Directions on Google Maps</a>
+                <a class="button secondary" href="/map?location={{ doctor.location }}&hospital={{ doctor.hospital|urlencode }}&id={{ doctor.doctor_id }}">🗺️ View District Map</a>
+                <a class="button secondary" href="/query?specialty={{ doctor.specialization|urlencode }}&doctor={{ doctor.doctor_name|urlencode }}" style="background: #e0f2fe; color: #0284c7; border-color: #bae6fd;">🤖 Ask Medical Chatbot</a>
+            </div>
+        </div>
+
+        <!-- Appointment Booking Form -->
+        <!-- Appointment Booking Form -->
+        <div class="form-panel" style="margin-top: 24px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 14px; padding: 22px; box-shadow: 0 8px 24px rgba(22, 101, 52, 0.1);">
+            <h3 style="font-size: 1.2rem; font-weight: 700; margin-top: 0; color: #166534; display: flex; align-items: center; gap: 8px;">
+                📅 Apply for Appointment & Get Official Slip
+            </h3>
+            <p style="font-size: 0.9rem; color: #15803d; margin-bottom: 16px; line-height: 1.4;">
+                Submit your visit request. You will instantly receive an official digital Appointment Letter slip, and the doctor will be notified to confirm your consultation.
+            </p>
+            <form method="POST" action="/appointment/book">
+                <input type="hidden" name="doctor_id" value="{{ doctor.doctor_id }}">
+                <input type="hidden" name="doctor_name" value="{{ doctor.doctor_name }}">
+                <input type="hidden" name="doctor_email" value="{{ doctor.email }}">
+                <input type="hidden" name="hospital" value="{{ doctor.hospital }}">
+                <input type="hidden" name="specialization" value="{{ doctor.specialization }}">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                    <div>
+                        <label for="appointment_date" style="display: block; font-weight: 700; font-size: 0.9rem; color: #14532d; margin-bottom: 6px;">Preferred Date</label>
+                        <input type="date" name="appointment_date" id="appointment_date" value="{{ default_date or '' }}" min="{{ min_date or '' }}" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #22c55e; background-color: #ffffff !important; color: #0f172a !important; color-scheme: light !important; font-size: 0.95rem; font-weight: 600;">
+                    </div>
+                    <div>
+                        <label for="appointment_time" style="display: block; font-weight: 700; font-size: 0.9rem; color: #14532d; margin-bottom: 6px;">Time Slot</label>
+                        <select name="appointment_time" id="appointment_time" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #22c55e; background-color: #ffffff !important; color: #0f172a !important; font-size: 0.95rem; font-weight: 600; cursor: pointer;">
+                            <option value="09:30 AM - Morning" style="color: #0f172a; background: #ffffff;">🌅 09:30 AM - Morning</option>
+                            <option value="11:30 AM - Morning" style="color: #0f172a; background: #ffffff;">☀️ 11:30 AM - Morning</option>
+                            <option value="02:30 PM - Afternoon" style="color: #0f172a; background: #ffffff;">🌤️ 02:30 PM - Afternoon</option>
+                            <option value="04:30 PM - Evening" style="color: #0f172a; background: #ffffff;">🌇 04:30 PM - Evening</option>
+                            <option value="06:30 PM - Evening" style="color: #0f172a; background: #ffffff;">🌙 06:30 PM - Evening</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <label for="disease" style="display: block; font-weight: 700; font-size: 0.9rem; color: #14532d; margin-bottom: 6px;">Primary Health Condition / Disease</label>
+                    <input type="text" id="disease" name="disease" value="{{ prefill_disease or '' }}" placeholder="e.g. Chest Tightness, Diabetes checkup, Skin Allergy" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #86efac; background-color: #ffffff !important; color: #0f172a !important; font-size: 0.95rem;">
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <label for="symptoms" style="display: block; font-weight: 700; font-size: 0.9rem; color: #14532d; margin-bottom: 6px;">Symptoms Observed</label>
+                    <input type="text" id="symptoms" name="symptoms" value="{{ prefill_symptoms or '' }}" placeholder="e.g. Fever, persistent cough, shortness of breath" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #86efac; background-color: #ffffff !important; color: #0f172a !important; font-size: 0.95rem;">
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label for="notes" style="display: block; font-weight: 700; font-size: 0.9rem; color: #14532d; margin-bottom: 6px;">Additional Notes / History (Optional)</label>
+                    <textarea id="notes" name="notes" rows="2" placeholder="Any previous treatment or urgent medical details..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #86efac; background-color: #ffffff !important; color: #0f172a !important; font-size: 0.95rem; font-family: inherit;"></textarea>
+                </div>
+
+                <button type="submit" class="button" style="width: 100%; padding: 13px; font-size: 1.05rem; font-weight: 700; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: #ffffff; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);">
+                    📄 Apply for Appointment Letter & Confirm Booking
+                </button>
+            </form>
+        </div>
+    </article>
+
+    <aside class="form-panel">
+        <h2 data-i18n="doctor_patient_review">Patient Review</h2>
+        <div class="search-summary">
+            <p>{{ doctor.feedback_text }}</p>
+        </div>
+        {% if review_success %}
+        <div class="search-summary" style="border-color: #16a085; background: rgba(22, 160, 133, 0.18);">
+            <p>{{ review_success }}</p>
+        </div>
+        {% endif %}
+        {% if review_error %}
+        <div class="search-summary" style="border-color: #e74c3c; background: rgba(231, 76, 60, 0.18);">
+            <p>{{ review_error }}</p>
+        </div>
+        {% endif %}
+        {% if latest_review %}
+        <div class="search-summary">
+            <p><strong data-i18n="doctor_new_feedback">New Feedback:</strong> {{ latest_review.new_feedback }}</p>
+            <p><strong data-i18n="doctor_patient_rating">Patient Rating:</strong> {{ latest_review.patient_rating }} / 5</p>
+        </div>
+        {% endif %}
+        <form method="POST" action="/doctor/{{ doctor.doctor_id }}/review" class="form-group" style="margin-top: 16px;">
+            <label for="feedback" style="font-weight: 600;" data-i18n="doctor_add_feedback">Add Feedback</label>
+            <textarea name="feedback" id="feedback" rows="3" placeholder="Write your feedback..." data-i18n-placeholder="doctor_feedback_placeholder" required></textarea>
+            <label for="rating" style="font-weight: 600; margin-top: 12px; display: block;" data-i18n="doctor_rating_label">Rating (1-5)</label>
+            <input type="number" name="rating" id="rating" min="1" max="5" step="1" required>
+            <div class="actions" style="margin-top: 12px;">
+                <button class="button" type="submit" data-i18n="doctor_submit_review">Submit Review</button>
+            </div>
+        </form>
+        <div class="actions">
+            <a class="button" href="/home" data-i18n="results_back_home">Back to Home</a>
+            <a class="button secondary" href="/form/{{ doctor.body_part_slug or 'general' }}" data-i18n="doctor_find_similar">Find Similar Specialists</a>
+        </div>
+    </aside>
+</section>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='leaflet.css') }}"/>
+<script src="{{ url_for('static', filename='leaflet.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var mapContainer = document.getElementById('doctor-hospital-map');
+        if (!mapContainer) return;
+
+        var lat = {{ doctor.lat or 11.0 }};
+        var lon = {{ doctor.lon or 78.7 }};
+        var hospitalName = {{ (doctor.hospital or 'Hospital') | tojson | safe }};
+        var doctorName = {{ (doctor.doctor_name or 'Doctor') | tojson | safe }};
+        var locationName = {{ (doctor.location or '') | tojson | safe }};
+
+        // Configure local marker icons
+        delete L.Icon.Default.prototype._getIconUrl;
+        L.Icon.Default.mergeOptions({
+            iconRetinaUrl: "{{ url_for('static', filename='images/marker-icon-2x.png') }}",
+            iconUrl: "{{ url_for('static', filename='images/marker-icon.png') }}",
+            shadowUrl: "{{ url_for('static', filename='images/marker-shadow.png') }}"
+        });
+
+        var docMap = L.map('doctor-hospital-map').setView([lat, lon], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(docMap);
+        setTimeout(function() { docMap.invalidateSize(); }, 200);
+
+        var marker = L.marker([lat, lon]).addTo(docMap);
+        var popupContent = '<div style="min-width: 180px; font-family: inherit; line-height: 1.4;">'
+            + '<strong style="color: #0d9488; font-size: 1.05rem;">🏥 ' + hospitalName + '</strong><br>'
+            + '<strong>👨‍⚕️ ' + doctorName + '</strong><br>'
+            + '<span>📍 ' + locationName + ' District</span><br>'
+            + '<div style="margin-top: 8px;">'
+            + '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(hospitalName + ' ' + locationName) + '" target="_blank" rel="noopener" style="background:#0284c7;color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:0.8rem;font-weight:600;">Open Directions</a>'
+            + '</div></div>';
+
+        marker.bindPopup(popupContent).openPopup();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-intro">
+    <span class="eyebrow">Healthcare analytics</span>
+    <h1 data-i18n="dashboard_title">Healthcare Search Dashboard</h1>
+    <p data-i18n="dashboard_description">Browse the dataset summary, top-rated doctors, and common conditions in the hospital dataset.</p>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card">
+        <span class="metric-card__label" data-i18n="dashboard_total_records">Total Records</span>
+        <strong class="metric-card__value">{{ total_entries }}</strong>
+        <p class="muted">Available doctor and hospital records in the recommendation dataset.</p>
+    </article>
+    <article class="metric-card">
+        <span class="metric-card__label">Tracked diseases</span>
+        <strong class="metric-card__value">{{ diseases|length }}</strong>
+        <p class="muted">Frequently searched disease categories represented in the data.</p>
+    </article>
+    <article class="metric-card">
+        <span class="metric-card__label">Tracked symptoms</span>
+        <strong class="metric-card__value">{{ symptoms|length }}</strong>
+        <p class="muted">Common symptom patterns used to support specialist matching.</p>
+    </article>
+</section>
+
+<section class="summary-grid">
+    <article class="summary-card">
+        <h3 data-i18n="dashboard_top_diseases">Top Diseases</h3>
+        <ul class="badge-list">
+            {% for disease in diseases %}
+            <li>{{ disease }}</li>
+            {% endfor %}
+        </ul>
+    </article>
+    <article class="summary-card">
+        <h3 data-i18n="dashboard_top_symptoms">Top Symptoms</h3>
+        <ul class="badge-list">
+            {% for symptom in symptoms %}
+            <li>{{ symptom }}</li>
+            {% endfor %}
+        </ul>
+    </article>
+    <article class="summary-card">
+        <h3>Platform focus</h3>
+        <p class="muted">
+            Use this dashboard to quickly understand the search landscape before exploring
+            specialists, doctor profiles, and city-based recommendations.
+        </p>
+        <div class="actions">
+            <a class="button" href="/form/General" data-i18n="dashboard_search_by_condition">Search by Condition</a>
+            <a class="button secondary" href="/map">Explore by Location</a>
+        </div>
+    </article>
+</section>
+
+<section class="page-intro page-intro--compact">
+    <h2 data-i18n="dashboard_top_rated">Top Rated Doctors</h2>
+    <p>High-performing specialists surfaced from the current hospital dataset.</p>
+</section>
+
+<section class="results-grid">
+    {% for item in top_doctors %}
+    <article class="doctor-card">
+        <div class="doctor-card__score">
+            <span>Rating</span>
+            <strong>{{ item.average_rating }}</strong>
+            <small>/ 5</small>
+        </div>
+        <div>
+            <h3>{{ item.doctor_name }}</h3>
+            <div class="doctor-card__meta">
+                <span><strong data-i18n="results_specialization">Specialization:</strong> {{ item.specialization }}</span>
+                <span><strong>Hospital:</strong> {{ item.hospital }}</span>
+                <span><strong data-i18n="results_location">Location:</strong> {{ item.location }}</span>
+            </div>
+            <p><strong data-i18n="results_average_rating">Rating:</strong> {{ item.average_rating }} / 5</p>
+            <p><strong>Review:</strong> {{ item.feedback_text }}</p>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+
+<div class="actions">
+    <a class="button" href="/home" data-i18n="dashboard_back_home">Back to Home</a>
+    <a class="button secondary" href="/form/General" data-i18n="dashboard_search_by_condition">Search by Condition</a>
+</div>
+{% endblock %}

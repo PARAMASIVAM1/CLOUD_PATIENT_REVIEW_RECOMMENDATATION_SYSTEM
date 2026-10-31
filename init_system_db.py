@@ -1,0 +1,305 @@
+import pandas as pd
+from datetime import datetime
+from db import get_connection
+
+def setup_all_schemas():
+    con = get_connection()
+    cur = con.cursor()
+
+    print("[1] Enhancing 'patients' table...")
+    # Add columns to patients if missing
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patients' AND column_name='role') THEN
+                ALTER TABLE "patients" ADD COLUMN role VARCHAR(50) DEFAULT 'patient';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patients' AND column_name='status') THEN
+                ALTER TABLE "patients" ADD COLUMN status VARCHAR(50) DEFAULT 'active';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patients' AND column_name='id') THEN
+                ALTER TABLE "patients" ADD COLUMN id SERIAL;
+            END IF;
+        END $$;
+    """)
+    con.commit()
+
+    # Ensure Default Admin exists
+    cur.execute('SELECT 1 FROM "patients" WHERE email = %s;', ['admin@healthcare.com'])
+    if not cur.fetchone():
+        now_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        cur.execute('''
+            INSERT INTO "patients" (first_name, last_name, email, password, role, status, enrolled_at, country, age)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+        ''', ['System', 'Administrator', 'admin@healthcare.com', 'admin123', 'admin', 'active', now_str, 'India', 35])
+        con.commit()
+        print("    -> Default admin created: admin@healthcare.com / admin123")
+    else:
+        cur.execute('UPDATE "patients" SET role = %s, password = %s WHERE email = %s;', ['admin', 'admin123', 'admin@healthcare.com'])
+        con.commit()
+        print("    -> Default admin verified.")
+
+    print("[2] Enhancing 'doctors' table with credentials & verification...")
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='email') THEN
+                ALTER TABLE "doctors" ADD COLUMN email VARCHAR(255);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='password') THEN
+                ALTER TABLE "doctors" ADD COLUMN password VARCHAR(255) DEFAULT 'doctor123';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='is_verified') THEN
+                ALTER TABLE "doctors" ADD COLUMN is_verified BOOLEAN DEFAULT TRUE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='qualifications') THEN
+                ALTER TABLE "doctors" ADD COLUMN qualifications VARCHAR(255) DEFAULT 'MBBS, MD';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='bio') THEN
+                ALTER TABLE "doctors" ADD COLUMN bio TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='experience_years') THEN
+                ALTER TABLE "doctors" ADD COLUMN experience_years INTEGER DEFAULT 10;
+            END IF;
+        END $$;
+    """)
+    con.commit()
+
+    # Provide demo doctor accounts if needed (e.g. doctor1@hospital.com)
+    cur.execute('UPDATE "doctors" SET email = LOWER(REGEXP_REPLACE(doctor, \'[^a-zA-Z0-9]\', \'\', \'g\')) || \'@hospital.com\' WHERE email IS NULL OR email = \'\';')
+    con.commit()
+    print("    -> Doctor emails verified/generated.")
+
+    print("[3] Creating 'appointments' table...")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS appointments (
+            id SERIAL PRIMARY KEY,
+            appointment_ref VARCHAR(30) UNIQUE,
+            patient_email VARCHAR(255),
+            patient_name VARCHAR(255),
+            patient_phone VARCHAR(50),
+            patient_age INTEGER,
+            patient_gender VARCHAR(20),
+            doctor_id INTEGER,
+            doctor_name VARCHAR(255),
+            hospital VARCHAR(255),
+            specialization VARCHAR(255),
+            appointment_date DATE,
+            appointment_time VARCHAR(50),
+            symptoms TEXT,
+            disease TEXT,
+            notes TEXT,
+            status VARCHAR(50) DEFAULT 'Pending',
+            doctor_notes TEXT,
+            prescription TEXT,
+            has_feedback BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    con.commit()
+    print("    -> 'appointments' table ready.")
+
+    print("[4] Creating 'notifications' table...")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS notifications (
+            id SERIAL PRIMARY KEY,
+            user_email VARCHAR(255),
+            user_role VARCHAR(50),
+            title VARCHAR(255),
+            message TEXT,
+            type VARCHAR(50),
+            reference_id INTEGER,
+            is_read BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    con.commit()
+    print("    -> 'notifications' table ready.")
+
+    print("[5] Enhancing 'patient_reviews' table...")
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='patient_email') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN patient_email VARCHAR(255) DEFAULT 'patient@example.com';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='doctor_response') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN doctor_response TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='is_reported') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN is_reported BOOLEAN DEFAULT FALSE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='report_reason') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN report_reason TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='is_moderated') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN is_moderated BOOLEAN DEFAULT FALSE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='appointment_id') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN appointment_id INTEGER;
+            END IF;
+        END $$;
+    """)
+    con.commit()
+    print("    -> 'patient_reviews' table ready with privacy & moderation columns.")
+
+    print("[6] Creating 'audit_logs' table...")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id SERIAL PRIMARY KEY,
+            actor_email VARCHAR(255),
+            actor_role VARCHAR(50),
+            action VARCHAR(255),
+            details TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    con.commit()
+    print("    -> 'audit_logs' table ready.")
+
+    print("[7] Creating & populating 'hospitals' table...")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS hospitals (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) UNIQUE,
+            location VARCHAR(255),
+            facilities TEXT DEFAULT '24/7 Emergency, ICU, Pharmacy, Diagnostic Lab, Ambulance',
+            contact_phone VARCHAR(50) DEFAULT '+91 44 2829 0200',
+            emergency_available BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    con.commit()
+
+    # Pre-populate distinct hospitals from doctors table if empty
+    cur.execute("SELECT COUNT(*) FROM hospitals;")
+    hosp_count = cur.fetchone()[0]
+    if hosp_count == 0:
+        cur.execute("""
+            INSERT INTO hospitals (name, location)
+            SELECT DISTINCT hospital, "Location (Tamil Nadu)"
+            FROM doctors
+            WHERE hospital IS NOT NULL AND TRIM(hospital) != ''
+            ON CONFLICT (name) DO NOTHING;
+        """)
+        con.commit()
+        print("    -> Populated hospitals from doctors dataset.")
+    else:
+        print(f"    -> Hospitals already populated ({hosp_count} hospitals).")
+
+    print("[8] Doctor verification workflow columns...")
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='verification_status') THEN
+                ALTER TABLE "doctors" ADD COLUMN verification_status VARCHAR(40) DEFAULT 'Approved';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='registration_number') THEN
+                ALTER TABLE "doctors" ADD COLUMN registration_number VARCHAR(120);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='registration_council') THEN
+                ALTER TABLE "doctors" ADD COLUMN registration_council VARCHAR(180);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='available_days') THEN
+                ALTER TABLE "doctors" ADD COLUMN available_days VARCHAR(180) DEFAULT 'Mon - Sat';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='available_timings') THEN
+                ALTER TABLE "doctors" ADD COLUMN available_timings VARCHAR(180) DEFAULT '09:30 AM - 05:30 PM';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='document_reference') THEN
+                ALTER TABLE "doctors" ADD COLUMN document_reference TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='rejection_reason') THEN
+                ALTER TABLE "doctors" ADD COLUMN rejection_reason TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='verified_by') THEN
+                ALTER TABLE "doctors" ADD COLUMN verified_by VARCHAR(255);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='verified_at') THEN
+                ALTER TABLE "doctors" ADD COLUMN verified_at TIMESTAMP;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='submitted_at') THEN
+                ALTER TABLE "doctors" ADD COLUMN submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+            END IF;
+        END $$;
+    """)
+    con.commit()
+
+    # Existing catalogue doctors were imported from verified hospital datasets.
+    # Newly self-registered doctors must remain pending until an administrator approves them.
+    cur.execute("""
+        UPDATE "doctors"
+        SET is_verified = TRUE
+        WHERE is_verified IS NULL AND (registration_number IS NULL OR registration_number = '');
+    """)
+    cur.execute("""
+        UPDATE "doctors"
+        SET verification_status = 'Approved'
+        WHERE verification_status IS NULL AND is_verified = TRUE;
+    """)
+    con.commit()
+    print("    -> Doctor verification statuses normalised.")
+
+    print("[9] Feedback review workflow columns...")
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='waiting_time_rating') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN waiting_time_rating INTEGER;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='communication_rating') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN communication_rating INTEGER;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='cost_satisfaction_rating') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN cost_satisfaction_rating INTEGER;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='moderation_status') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN moderation_status VARCHAR(40) DEFAULT 'Published';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='moderation_note') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN moderation_note TEXT;
+            END IF;
+        END $$;
+    """)
+    con.commit()
+    print("    -> Review detail ratings and moderation status ready.")
+
+    print("[10] Creating 'review_reports' table...")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS review_reports (
+            id SERIAL PRIMARY KEY,
+            review_id INTEGER,
+            reporter_role VARCHAR(50),
+            reporter_email VARCHAR(255),
+            reason TEXT,
+            status VARCHAR(40) DEFAULT 'Open',
+            resolved_by VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    con.commit()
+    print("    -> 'review_reports' table ready.")
+
+    print("[11] Creating 'doctor_profile_requests' table...")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS doctor_profile_requests (
+            id SERIAL PRIMARY KEY,
+            doctor_id INTEGER,
+            doctor_email VARCHAR(255),
+            requested_changes TEXT,
+            request_note TEXT,
+            status VARCHAR(40) DEFAULT 'Pending Review',
+            reviewed_by VARCHAR(255),
+            reviewed_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    con.commit()
+    print("    -> 'doctor_profile_requests' table ready.")
+
+    con.close()
+    print("\n[ALL SCHEMAS SETUP SUCCESSFULLY!]")
+
+if __name__ == "__main__":
+    setup_all_schemas()

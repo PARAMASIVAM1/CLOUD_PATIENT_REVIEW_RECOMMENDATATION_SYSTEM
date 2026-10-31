@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card card-centered" style="margin-top: 40px; text-align: center; padding: 40px 24px;">
+    <div style="font-size: 3rem; margin-bottom: 12px;">⏳</div>
+    <span class="eyebrow" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35); color: #fde047;">Verification in Progress</span>
+    <h1 style="margin: 12px 0 8px; font-size: 1.8rem;">Doctor Account Pending Verification</h1>
+    <p class="muted" style="max-width: 540px; margin: 0 auto 20px; font-size: 0.95rem;">
+        Dr. {{ doctor_name }}, your practitioner profile is currently under review by our Medical Administrative Board.
+    </p>
+
+    <div style="background: rgba(15, 25, 44, 0.7); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 20px; max-width: 480px; margin: 0 auto 24px; text-align: left; font-size: 0.9rem;">
+        <div style="margin-bottom: 8px;">
+            <strong style="color: #94a3b8;">Current Status:</strong>
+            <span style="color: #facc15; font-weight: 700; margin-left: 6px;">{{ verification_status }}</span>
+        </div>
+        <div style="margin-bottom: 8px;">
+            <strong style="color: #94a3b8;">Review SLA:</strong>
+            <span style="color: #cbd5e1; margin-left: 6px;">Usually verified within 12 - 24 business hours</span>
+        </div>
+        <div>
+            <strong style="color: #94a3b8;">Access Level:</strong>
+            <span style="color: #cbd5e1; margin-left: 6px;">Limited (clinical queue unlocks upon admin clearance)</span>
+        </div>
+    </div>
+
+    <div class="actions" style="display: flex; justify-content: center; gap: 12px;">
+        <a href="/logout" class="button secondary" style="color: #f87171;">Logout</a>
+        <a href="/home" class="button secondary">Browse Public Portal</a>
+    </div>
+</section>
+{% endblock %}
+

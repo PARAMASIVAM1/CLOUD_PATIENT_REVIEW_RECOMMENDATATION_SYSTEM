@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="profile-hero" style="margin-bottom: 24px;">
+    <div>
+        <p class="eyebrow">Post-Treatment Care</p>
+        <h1>Share Your Consultation Experience</h1>
+        <p>Your feedback helps improve hospital care quality. (Your identity is protected and anonymized to the doctor).</p>
+    </div>
+    <div>
+        <a href="/my-appointments" class="button secondary">← Back to Appointments</a>
+    </div>
+</section>
+
+<div class="form-panel" style="max-width: 640px; margin: 0 auto; padding: 30px;">
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+        <div style="font-size: 0.85rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Completed Consultation</div>
+        <h3 style="margin: 4px 0 2px; color: #0f172a;">{{ appointment.doctor_name }}</h3>
+        <div style="font-size: 0.92rem; color: #475569;">{{ appointment.specialization }} • 🏥 {{ appointment.hospital }}</div>
+        <div style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">📅 Visited on {{ appointment.appointment_date }} (Ref: {{ appointment.appointment_ref }})</div>
+    </div>
+
+    <form method="POST" action="/appointment/{{ appointment.id }}/feedback">
+        <div class="form-group" style="margin-bottom: 16px;">
+            <label style="font-weight: 700;">Overall Treatment Rating (1 - 5 Stars)</label>
+            <div style="display: flex; gap: 16px; margin-top: 6px;">
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="5" checked> ⭐ 5 (Excellent)</label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="4"> ⭐ 4 (Good)</label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="3"> ⭐ 3 (Average)</label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="2"> ⭐ 2 (Poor)</label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="1"> ⭐ 1 (Very Bad)</label>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label style="font-weight: 700;">Your Detailed Experience & Feedback</label>
+            <textarea name="feedback" rows="5" placeholder="Share details about the doctor's explanation, treatment effectiveness, bedside manner, and hospital waiting time..." required></textarea>
+            <span class="muted" style="font-size: 0.82rem; margin-top: 4px; display: block;">
+                🔒 Privacy Note: Your review will be analyzed by our NLP Sentiment model and displayed anonymously to the doctor to preserve your confidentiality.
+            </span>
+        </div>
+
+        <div class="actions">
+            <button type="submit" class="button" style="width: 100%; padding: 12px; font-size: 1rem; background: #10b981;">
+                ⭐ Submit Verified Review
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

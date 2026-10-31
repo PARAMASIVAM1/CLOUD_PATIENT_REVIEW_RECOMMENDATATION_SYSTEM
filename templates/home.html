@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2 data-i18n="home_title">Select Body Part</h2>
+    <p data-i18n="home_description">Choose the treatment area to find specialists, their fees, and patient feedback.</p>
+    <div class="section">
+        <h3 data-i18n="home_major_parts">Major Parts</h3>
+        <div class="grid">
+            {% for part in major_parts %}
+            <a class="tile" href="/form/{{ part.slug }}" data-part-key="{{ part.slug }}"><span class="part-label">{{ part.label }}</span></a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="section">
+        <h3 data-i18n="home_other_parts">Other Parts</h3>
+        <div class="grid">
+            {% for part in other_parts %}
+            <a class="tile" href="/form/{{ part.slug }}" data-part-key="{{ part.slug }}"><span class="part-label">{{ part.label }}</span></a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="section">
+        <h3 data-i18n="home_medical_query">Medical Query Assistant</h3>
+        <p data-i18n="home_query_description">Ask symptoms or disease-related questions and get dataset-backed guidance.</p>
+        <a class="button" href="/query" data-i18n="home_ask_medical_query">Ask a Medical Query</a>
+        <a class="button secondary" href="/dashboard" data-i18n="home_view_dashboard">View Search Dashboard</a>
+        <a class="button secondary" href="/map">View Hospital Map</a>
+    </div>
+</div>
+{% endblock %}

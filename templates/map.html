@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='leaflet.css') }}"/>
+<script src="{{ url_for('static', filename='leaflet.js') }}"></script>
+
+<section class="page-intro">
+    <span class="eyebrow">Location intelligence</span>
+    <h1>Map-Based Doctor Search</h1>
+    <p>Select a city to view nearby doctors with location-based filtering and profile access.</p>
+</section>
+
+<section class="form-panel" style="margin-bottom: 16px;">
+    <form action="/map-search" method="post" class="map-form">
+        <div>
+            <label for="location">City</label>
+            <select id="location" name="location">
+                <option value="">All locations</option>
+                {% for location in locations %}
+                <option value="{{ location }}" {% if selected_location == location %}selected{% endif %}>{{ location }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit">Show Map</button>
+    </form>
+</section>
+
+{% if map_data %}
+<div id="map" class="map-box"></div>
+
+<script>
+    (function() {
+        if (typeof L === 'undefined') {
+            console.error('Leaflet failed to load');
+            return;
+        }
+
+        // Configure local marker icons
+        delete L.Icon.Default.prototype._getIconUrl;
+        L.Icon.Default.mergeOptions({
+            iconRetinaUrl: "{{ url_for('static', filename='images/marker-icon-2x.png') }}",
+            iconUrl: "{{ url_for('static', filename='images/marker-icon.png') }}",
+            shadowUrl: "{{ url_for('static', filename='images/marker-shadow.png') }}"
+        });
+
+        var map = L.map('map', {
+            zoomControl: true,
+            scrollWheelZoom: true
+        }).setView([11.0, 78.7], 6);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        function triggerResize() {
+            try { map.invalidateSize(); } catch(e) {}
+        }
+        setTimeout(triggerResize, 100);
+        setTimeout(triggerResize, 350);
+        window.addEventListener('resize', triggerResize);
+
+        var markers = [];
+        var mapData = {{ (map_data or []) | tojson | safe }};
+        var selectedHospital = {{ (selected_hospital or '') | tojson | safe }};
+        var selectedDoctorId = {{ (selected_doctor_id or '') | tojson | safe }};
+        var targetMarker = null;
+
+        if (mapData && mapData.length) {
+            mapData.forEach(function(item) {
+                if (item.lat && item.lon) {
+                    var marker = L.marker([item.lat, item.lon]).addTo(map);
+                    var popupHtml = '<div style="min-width: 190px; font-family: inherit; line-height: 1.4;">'
+                        + '<strong style="color: #0d9488; font-size: 1.05rem;">🏥 ' + (item.hospital || 'Hospital') + '</strong><br>'
+                        + '<strong>👨‍⚕️ ' + item.doctor + '</strong><br>'
+                        + '<span style="color: #64748b; font-size: 0.85rem;">' + item.specialization + '</span><br>'
+                        + '<span>📍 <strong>' + item.location + '</strong> District</span><br>'
+                        + '<div style="margin-top: 8px; display: flex; gap: 6px;">'
+                        + '<a href="/doctor/' + item.doctor_id + '" style="background:#0d9488;color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:0.8rem;font-weight:600;">Profile</a> '
+                        + '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((item.hospital || '') + ' ' + (item.location || '')) + '" target="_blank" rel="noopener" style="background:#0284c7;color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;font-size:0.8rem;font-weight:600;">Directions</a>'
+                        + '</div></div>';
+                    marker.bindPopup(popupHtml);
+                    markers.push(marker);
+
+                    if (selectedDoctorId && String(item.doctor_id) === String(selectedDoctorId)) {
+                        targetMarker = marker;
+                    } else if (!targetMarker && selectedHospital && item.hospital && item.hospital.toLowerCase().indexOf(selectedHospital.toLowerCase()) !== -1) {
+                        targetMarker = marker;
+                    }
+                }
+            });
+
+            if (targetMarker) {
+                map.setView(targetMarker.getLatLng(), 14);
+                targetMarker.openPopup();
+            } else if (markers.length) {
+                var group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.3));
+            }
+        }
+    })();
+</script>
+
+<section class="search-summary">
+    <div>
+        <strong>{{ map_data|length }}</strong>
+        <span>doctor results found{% if selected_location %} in {{ selected_location }}{% endif %}</span>
+    </div>
+    <p class="muted">Compare specialists by hospital, city, and rating, then open the full doctor profile.</p>
+</section>
+
+<section class="results-grid">
+    {% for item in map_data %}
+    <article class="doctor-card">
+        <div class="doctor-card__score">
+            <span>Rating</span>
+            <strong>{{ item.rating }}</strong>
+            <small>/ 5</small>
+        </div>
+        <div>
+            <h3>{{ item.doctor }}</h3>
+            <div class="doctor-card__meta">
+                <span><strong>Specialization:</strong> {{ item.specialization }}</span>
+                <span><strong>Hospital:</strong> {{ item.hospital }}</span>
+                <span><strong>Location:</strong> {{ item.location }}</span>
+            </div>
+            <div class="actions">
+                <a class="button secondary" href="/doctor/{{ item.doctor_id }}">View Profile</a>
+                <a class="button secondary" href="https://www.google.com/maps/search/?api=1&query={{ (item.hospital ~ ' ' ~ item.location)|urlencode }}" target="_blank" rel="noopener noreferrer">🧭 Directions</a>
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+{% else %}
+<section class="empty-state" style="margin-top: 20px;">
+    <h3>Select a city to explore doctors</h3>
+    <p>Select any district from the dropdown above and click "Show Map" to explore hospital locations and specialists.</p>
+</section>
+{% endif %}
+{% endblock %}

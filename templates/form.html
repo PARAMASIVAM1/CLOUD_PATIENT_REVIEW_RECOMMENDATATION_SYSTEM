@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-intro">
+    <p class="eyebrow" data-i18n="form_search_title" data-i18n-part="{{ part_key }}">{{ part }} Specialist Search</p>
+    <h1 data-i18n="form_search_title" data-i18n-part="{{ part_key }}">{{ part }} care, matched to your needs</h1>
+    <p data-i18n="form_search_description" data-i18n-part="{{ part_key }}">Choose a disease under <strong>{{ part }}</strong> and refine the symptom, budget, and location filters to discover suitable doctors and hospitals.</p>
+</section>
+
+<section class="form-layout">
+    <div class="form-panel">
+        <div class="search-summary">
+            <h2 data-i18n="form_search_title" data-i18n-part="{{ part_key }}">{{ part }} specialist search</h2>
+            <p>Provide a few details so the recommendation engine can rank doctors by relevance, affordability, and nearby availability.</p>
+        </div>
+
+        <form action="/search" method="get">
+            <input type="hidden" name="part" value="{{ part }}" />
+            <input type="hidden" name="part_key" value="{{ part_key }}" />
+
+            <div class="form-grid">
+                <label>
+                    <span data-i18n="label_doctor_name">Doctor Name (optional)</span>
+                    <input type="text" name="doctor_name" placeholder="e.g., Dr. Kumar, Dr. Anitha" data-i18n-placeholder="placeholder_doctor_name" />
+                </label>
+
+                <label>
+                    <span data-i18n="label_age">Age</span>
+                    <input type="number" name="age" placeholder="e.g., 35" min="1" required data-i18n-placeholder="placeholder_age" />
+                </label>
+
+                <label>
+                    <span data-i18n="label_disease">Disease</span>
+                    <select name="disease" id="disease-select">
+                        <option value="" data-i18n="option_any_disease">Any disease</option>
+                        {% for disease in diseases %}
+                        <option value="{{ disease }}">{{ disease }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <label>
+                    <span data-i18n="label_symptom">Symptom</span>
+                    <select name="symptom" id="symptom-select">
+                        <option value="" data-i18n="option_any_symptom">Any symptom</option>
+                        {% for symptom in symptoms %}
+                        <option value="{{ symptom }}">{{ symptom }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <label>
+                    <span data-i18n="label_max_fee">Maximum Consultation Fee</span>
+                    <input type="number" name="fees" placeholder="Enter budget" min="100" required data-i18n-placeholder="placeholder_budget" />
+                </label>
+
+                <label>
+                    <span data-i18n="label_location">Preferred Location</span>
+                    <input list="location-options" type="text" name="location" placeholder="City or area" required data-i18n-placeholder="placeholder_location" />
+                    <datalist id="location-options">
+                        {% for location in locations %}
+                        <option value="{{ location }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </label>
+            </div>
+
+            <div class="actions">
+                <button type="submit" class="button" data-i18n="button_find_doctors">Find Doctors</button>
+                <a class="button secondary" href="/query">Ask AI guidance first</a>
+            </div>
+        </form>
+    </div>
+
+    <aside class="form-panel">
+        <div class="search-summary">
+            <h3 data-i18n="form_common_conditions" data-i18n-part="{{ part_key }}">Common conditions for {{ part }}</h3>
+            <p>Review typical conditions and associated symptoms before choosing filters.</p>
+        </div>
+
+        {% if diseases %}
+        <div class="badge-list">
+            {% for disease in diseases %}
+            <span class="badge">{{ disease }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="info-panel">
+            <ul>
+                {% for disease in diseases %}
+                <li>
+                    <strong>{{ disease }}</strong>
+                    {% if disease_symptoms.get(disease) %}
+                    — {{ disease_symptoms.get(disease) | join(', ') }}
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </aside>
+</section>
+
+<script>
+    const diseaseSymptomMap = {{ disease_symptoms|tojson }};
+    const diseaseSelect = document.getElementById('disease-select');
+    const symptomSelect = document.getElementById('symptom-select');
+    const originalSymptomOptions = Array.from(symptomSelect.options).map(option => ({ value: option.value, text: option.text }));
+
+    function updateSymptomOptions() {
+        const selectedDisease = diseaseSelect.value;
+        const allowedSymptoms = diseaseSymptomMap[selectedDisease];
+
+        const anySymptomText = document.querySelector('#symptom-select option[data-i18n="option_any_symptom"]')?.textContent || 'Any symptom';
+        symptomSelect.innerHTML = '';
+        symptomSelect.appendChild(new Option(anySymptomText, ''));
+
+        if (allowedSymptoms && allowedSymptoms.length > 0) {
+            const allowedSet = new Set(allowedSymptoms.map(s => s.toLowerCase()));
+            originalSymptomOptions.forEach(option => {
+                if (option.value && allowedSet.has(option.value.toLowerCase())) {
+                    symptomSelect.appendChild(new Option(option.text, option.value));
+                }
+            });
+        } else {
+            originalSymptomOptions.forEach(option => {
+                if (option.value !== '') symptomSelect.appendChild(new Option(option.text, option.value));
+            });
+        }
+    }
+
+    diseaseSelect.addEventListener('change', updateSymptomOptions);
+</script>
+
+<!-- Virtual Keyboard for Regional Language Input -->
+<script src="{{ url_for('static', filename='virtual_keyboard.js') }}"></script>
+<script>
+    // Initialize virtual keyboard for all text inputs on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const languageSelector = document.getElementById('language-selector') || document.getElementById('language-select');
+        const inputs = document.querySelectorAll('input[type="text"], textarea');
+        const keyboard = new VirtualKeyboard();
+        
+        // Get saved language or default to English
+        const savedLang = localStorage.getItem('selectedLanguage') || 'en';
+        keyboard.currentLanguage = savedLang;  // Set initial language
+        if (languageSelector) {
+            languageSelector.value = savedLang;
+        }
+        
+        keyboard.init();
+        
+        // Handle language selection changes
+        if (languageSelector) {
+            languageSelector.addEventListener('change', function() {
+                const selectedLang = this.value;
+                localStorage.setItem('selectedLanguage', selectedLang);
+                keyboard.currentLanguage = selectedLang;  // Update keyboard language
+                
+                // If keyboard is open, close and reopen with new language
+                if (keyboard.isOpen) {
+                    keyboard.close();
+                    setTimeout(() => {
+                        keyboard.updateKeyboard();
+                        if (keyboard.activeInput) {
+                            keyboard.open(keyboard.activeInput);
+                        }
+                    }, 100);
+                }
+                
+                // Dispatch custom event for language change
+                window.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: selectedLang } }));
+            });
+        }
+        
+        // Attach keyboard to all input fields
+        inputs.forEach(input => {
+            // Show keyboard on focus (for non-select fields)
+            input.addEventListener('focus', function() {
+                const currentLang = keyboard.currentLanguage || 'en';
+                if (currentLang !== 'en') {
+                    keyboard.open(this);
+                }
+            });
+            
+            // Hide keyboard on blur
+            input.addEventListener('blur', function() {
+                setTimeout(() => keyboard.close(), 100);
+            });
+        });
+    });
+</script>
+{% endblock %}

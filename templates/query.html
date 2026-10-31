@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="page-intro">
+    <p class="eyebrow" data-i18n="query_title">Medical Query Assistant</p>
+    <h1 data-i18n="query_heading">AI guidance for everyday health questions</h1>
+    <p data-i18n="query_description">Enter a disease name or symptom to see common reasons, usual treatment options, and which doctor to consult.</p>
+</section>
+
+<section class="query-layout">
+    <div class="query-panel">
+        <form action="/query" method="post">
+            <label for="query-input" class="sr-only" data-i18n="query_input_label">Medical query</label>
+            <div class="query-input">
+                <input id="query-input" type="text" name="query" placeholder="Example: fever, headache, skin rash, tooth pain" value="{{ user_query }}" required data-i18n-placeholder="query_placeholder" />
+                <button type="button" class="mic-button" id="voice-btn" aria-label="Start voice input" title="Voice Search (Click and speak your symptom)">
+                    <svg class="mic-icon-svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="voice-status" class="voice-status" style="display: none;" role="status" aria-live="polite">
+                <span class="pulse-dot"></span>
+                <span id="voice-status-text">Listening... Speak now</span>
+            </div>
+            <input type="hidden" name="language" id="language-submit" value="{{ selected_language or 'en' }}" />
+            <div class="actions">
+                <button type="submit" class="button" data-i18n="button_get_answer">Get Answer</button>
+                <a class="button secondary" href="/home" data-i18n="results_back_home">Back to Home</a>
+            </div>
+        </form>
+
+        <div class="search-summary">
+            <p data-i18n="query_examples_label">Try these example queries:</p>
+            <div class="badge-list">
+                <button type="button" class="badge query-example" data-i18n="query_example_fever">Fever</button>
+                <button type="button" class="badge query-example" data-i18n="query_example_headache">Headache</button>
+                <button type="button" class="badge query-example" data-i18n="query_example_tooth_pain">Tooth Pain</button>
+                <button type="button" class="badge query-example" data-i18n="query_example_skin_rash">Skin Rash</button>
+                <button type="button" class="badge query-example" data-i18n="query_example_diabetes">Diabetes</button>
+                <button type="button" class="badge query-example" data-i18n="query_example_asthma">Asthma</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="answer-panel">
+        {% if answer %}
+        <h2>{{ answer.title }}</h2>
+        <p>{{ answer.summary }}</p>
+
+        {% if answer.possible_reasons %}
+        <h3 data-i18n="answer_possible_reasons">Possible Reasons</h3>
+        <ul>
+            {% for item in answer.possible_reasons %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if answer.medicines %}
+        <h3 data-i18n="answer_common_medicines">Common Medicines / Treatment</h3>
+        <ul>
+            {% for item in answer.medicines %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if answer.self_care %}
+        <h3 data-i18n="answer_self_care">Self Care</h3>
+        <ul>
+            {% for item in answer.self_care %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if answer.specialist %}
+        <h3 data-i18n="answer_specialist">Recommended Specialist</h3>
+        <p>{{ answer.specialist }}</p>
+        {% endif %}
+
+        {% if answer.emergency %}
+        <h3 data-i18n="answer_emergency">See a Doctor Urgently If</h3>
+        <ul>
+            {% for item in answer.emergency %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if answer.faq_answer %}
+        <h3 data-i18n="answer_extra_guidance">Extra Guidance</h3>
+        <p>{{ answer.faq_answer }}</p>
+        {% endif %}
+
+        <h3 data-i18n="answer_safety_note">Safety Note</h3>
+        <p>{{ answer.disclaimer }}</p>
+        {% else %}
+        <div class="empty-state">
+            <h2 data-i18n="query_empty_title">Start with a symptom or condition</h2>
+            <p data-i18n="query_empty_description">Ask about fever, headache, breathing issues, skin concerns, diabetes, dental pain, and more to get structured guidance.</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<script>
+// Automatically switch from 127.0.0.1 to localhost for browser Web Speech API secure context
+if (window.location.hostname === '127.0.0.1') {
+    window.location.replace(window.location.href.replace('127.0.0.1', 'localhost'));
+}
+
+function getCurrentUiLanguage() {
+    const docLang = document.documentElement.lang;
+    if (docLang) {
+        return docLang;
+    }
+    const selector = document.getElementById('language-select');
+    if (selector && selector.value) {
+        return selector.value;
+    }
+    return localStorage.getItem('selectedLanguage') || 'en';
+}
+
+function syncQueryLanguageField() {
+    const languageField = document.getElementById('language-submit');
+    if (languageField) {
+        languageField.value = getCurrentUiLanguage();
+    }
+}
+
+function setQuery(text) {
+    document.querySelector('input[name="query"]').value = text;
+    syncQueryLanguageField();
+}
+
+function mapSpeechLanguage(language) {
+    switch (language) {
+        case 'ta':
+            return 'ta-IN';
+        case 'hi':
+            return 'hi-IN';
+        case 'te':
+            return 'te-IN';
+        case 'kn':
+            return 'kn-IN';
+        default:
+            return 'en-US';
+    }
+}
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Defer to allow base layout language initialization first.
+        setTimeout(syncQueryLanguageField, 0);
+
+        const globalLanguageSelector = document.getElementById('language-select');
+        if (globalLanguageSelector) {
+            globalLanguageSelector.addEventListener('change', function() {
+                syncQueryLanguageField();
+            });
+        }
+
+        document.querySelectorAll('.query-example').forEach((button) => {
+            button.addEventListener('click', function() {
+                setQuery(button.textContent.trim());
+                const form = document.querySelector('form');
+                if (form) {
+                    form.submit();
+                }
+            });
+        });
+
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function() {
+                syncQueryLanguageField();
+            });
+        }
+
+        const voiceButton = document.getElementById('voice-btn');
+        const queryInput = document.getElementById('query-input');
+        const voiceStatus = document.getElementById('voice-status');
+        const voiceStatusText = document.getElementById('voice-status-text');
+        let recognition = null;
+        let isListening = false;
+        let autoSubmitTimer = null;
+
+        function setVoiceStatus(message, isError = false, autoHideMs = 0) {
+            if (!voiceStatus || !voiceStatusText) return;
+            voiceStatusText.innerHTML = message;
+            if (isError) {
+                voiceStatus.classList.add('error');
+            } else {
+                voiceStatus.classList.remove('error');
+            }
+            voiceStatus.style.display = 'flex';
+
+            if (autoHideMs > 0) {
+                setTimeout(() => {
+                    if (!isListening) {
+                        voiceStatus.style.display = 'none';
+                    }
+                }, autoHideMs);
+            }
+        }
+
+        function resetVoiceButton() {
+            isListening = false;
+            if (voiceButton) {
+                voiceButton.classList.remove('is-listening');
+                voiceButton.dataset.state = 'idle';
+                voiceButton.setAttribute('aria-label', 'Start voice input');
+                voiceButton.title = 'Voice Search (Click and speak your symptom)';
+            }
+        }
+
+        let isRecordingWav = false;
+        let wavStream = null;
+        let wavAudioCtx = null;
+        let wavProcessor = null;
+        let wavSamples = [];
+        let wavAutoStopTimer = null;
+
+        function encodeWav(samplesArray, sampleRate) {
+            let length = 0;
+            for (let i = 0; i < samplesArray.length; i++) {
+                length += samplesArray[i].length;
+            }
+            const merged = new Float32Array(length);
+            let offset = 0;
+            for (let i = 0; i < samplesArray.length; i++) {
+                merged.set(samplesArray[i], offset);
+                offset += samplesArray[i].length;
+            }
+
+            const buffer = new ArrayBuffer(44 + merged.length * 2);
+            const view = new DataView(buffer);
+
+            function writeString(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            }
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + merged.length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // PCM
+            view.setUint16(22, 1, true); // Mono
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, merged.length * 2, true);
+
+            let pcmOffset = 44;
+            for (let i = 0; i < merged.length; i++) {
+                let s = Math.max(-1, Math.min(1, merged[i]));
+                view.setInt16(pcmOffset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                pcmOffset += 2;
+            }
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        async function startWavRecording() {
+            try {
+                wavSamples = [];
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error("Audio recording is not supported on this URL. Please use http://localhost:5000 (not an IP address).");
+                }
+                wavStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                wavAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const source = wavAudioCtx.createMediaStreamSource(wavStream);
+                wavProcessor = wavAudioCtx.createScriptProcessor(4096, 1, 1);
+                wavProcessor.onaudioprocess = (e) => {
+                    const channel = e.inputBuffer.getChannelData(0);
+                    wavSamples.push(new Float32Array(channel));
+                };
+                source.connect(wavProcessor);
+                wavProcessor.connect(wavAudioCtx.destination);
+                isRecordingWav = true;
+                isListening = true;
+                if (voiceButton) {
+                    voiceButton.classList.add('is-listening');
+                    voiceButton.dataset.state = 'listening';
+                    voiceButton.setAttribute('aria-label', 'Listening... Click to search');
+                    voiceButton.title = 'Listening... Click to search';
+                }
+                setVoiceStatus('Listening... Speak your symptom now (Click mic when done)');
+
+                clearTimeout(wavAutoStopTimer);
+                wavAutoStopTimer = setTimeout(() => {
+                    if (isRecordingWav) {
+                        stopWavAndProcess();
+                    }
+                }, 4500);
+            } catch (err) {
+                console.error('Microphone stream error:', err);
+                resetVoiceButton();
+                setVoiceStatus(
+                    `<strong>Microphone Access Blocked (${err.name || 'Error'}):</strong> ${err.message || 'Permission denied'}<br>` +
+                    `<b>உடனடி தீர்வு (Quick Fixes):</b><br>` +
+                    `1. <b>Incognito Mode:</b> புதிய Incognito window திறக்கவும் (<strong>Ctrl + Shift + N</strong>) &rarr; <code>http://localhost:5000/query</code> திறக்கவும் &rarr; மைக் கிளிக் செய்து <strong>Allow</strong> கொடுக்கவும்!<br>` +
+                    `2. <b>Chrome Reset:</b> URL பாரின் இடது ஓரத்தில் உள்ள ஐகானை (🔒 அல்லது 🎚️) கிளிக் செய்து <strong>Reset permissions</strong> கிளிக் செய்யவும்.`,
+                    true,
+                    30000
+                );
+            }
+        }
+
+        async function stopWavAndProcess() {
+            clearTimeout(wavAutoStopTimer);
+            if (!isRecordingWav) return;
+            isRecordingWav = false;
+            resetVoiceButton();
+            setVoiceStatus('Analyzing your speech...', false);
+
+            try {
+                if (wavProcessor) {
+                    wavProcessor.disconnect();
+                    wavProcessor = null;
+                }
+                if (wavStream) {
+                    wavStream.getTracks().forEach(t => t.stop());
+                    wavStream = null;
+                }
+                const sampleRate = wavAudioCtx ? wavAudioCtx.sampleRate : 44100;
+                if (wavAudioCtx) {
+                    await wavAudioCtx.close();
+                    wavAudioCtx = null;
+                }
+
+                if (!wavSamples.length) {
+                    setVoiceStatus('No audio recorded. Please click the mic and try again.', true, 4000);
+                    return;
+                }
+
+                const wavBlob = encodeWav(wavSamples, sampleRate);
+                const formData = new FormData();
+                formData.append('audio', wavBlob, 'query.wav');
+                formData.append('language', getCurrentUiLanguage());
+
+                const res = await fetch('/api/voice_query', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success && data.query) {
+                    queryInput.value = data.query;
+                    setVoiceStatus(`Recognized: "${data.query}" - Searching...`, false);
+                    setTimeout(() => {
+                        syncQueryLanguageField();
+                        const form = document.querySelector('form');
+                        if (form) form.submit();
+                    }, 600);
+                } else {
+                    setVoiceStatus(data.error || 'Could not recognize speech. Please speak clearly and try again.', true, 6000);
+                }
+            } catch (err) {
+                console.error('Wav processing error:', err);
+                setVoiceStatus('Speech transcription notice: ' + err.message, true, 5000);
+            }
+        }
+
+        if (voiceButton && queryInput) {
+            voiceButton.dataset.state = 'idle';
+
+            async function handleVoiceButtonClick() {
+                if (isRecordingWav) {
+                    await stopWavAndProcess();
+                    return;
+                }
+
+                // Call audio recording directly with active user gesture
+                await startWavRecording();
+            }
+
+            voiceButton.addEventListener('click', handleVoiceButtonClick);
+        }
+
+    });
+
+    document.addEventListener('languageChanged', function() {
+        syncQueryLanguageField();
+        const form = document.querySelector('form');
+        const queryInput = document.querySelector('input[name="query"]');
+        const emptyState = document.querySelector('.empty-state');
+        if (form && queryInput && queryInput.value.trim() && !emptyState) {
+            form.submit();
+        }
+    });
+</script>
+{% endblock %}

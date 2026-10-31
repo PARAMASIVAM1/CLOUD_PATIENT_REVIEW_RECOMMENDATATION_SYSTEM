@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="profile-hero">
+    <div style="flex: 1;">
+        <span class="eyebrow">Patient Care Portal</span>
+        <h1>Welcome, {{ patient_name }}</h1>
+        <p class="muted">Manage your consultations, view medical letters, and track your clinical recovery.</p>
+    </div>
+    <div class="actions" style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <a class="button" href="/home" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);">🔍 Find Doctors by Body Part</a>
+        <a class="button secondary" href="/my-appointments">📅 My Appointment History</a>
+        <a class="button secondary" href="/query">🤖 Ask AI Medical Chatbot</a>
+    </div>
+</section>
+
+<!-- Overview Metrics -->
+<div class="summary-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin: 24px 0;">
+    <div class="metric-card" style="padding: 20px; border-radius: 12px; background: rgba(15, 25, 44, 0.7); border: 1px solid rgba(56, 189, 248, 0.2);">
+        <span style="font-size: 0.82rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Total Bookings</span>
+        <div style="font-size: 2rem; font-weight: 800; color: #38bdf8; margin-top: 4px;">{{ summary.total_appointments }}</div>
+        <span style="font-size: 0.8rem; color: #64748b;">All-time consultations</span>
+    </div>
+
+    <div class="metric-card" style="padding: 20px; border-radius: 12px; background: rgba(15, 25, 44, 0.7); border: 1px solid rgba(34, 197, 94, 0.25);">
+        <span style="font-size: 0.82rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Upcoming Visits</span>
+        <div style="font-size: 2rem; font-weight: 800; color: #4ade80; margin-top: 4px;">{{ summary.upcoming|length }}</div>
+        <span style="font-size: 0.8rem; color: #64748b;">Scheduled & pending</span>
+    </div>
+
+    <div class="metric-card" style="padding: 20px; border-radius: 12px; background: rgba(15, 25, 44, 0.7); border: 1px solid rgba(168, 85, 247, 0.25);">
+        <span style="font-size: 0.82rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Completed Cases</span>
+        <div style="font-size: 2rem; font-weight: 800; color: #c084fc; margin-top: 4px;">{{ summary.past|length }}</div>
+        <span style="font-size: 0.8rem; color: #64748b;">With treatment notes</span>
+    </div>
+
+    <div class="metric-card" style="padding: 20px; border-radius: 12px; background: rgba(15, 25, 44, 0.7); border: 1px solid rgba(245, 158, 11, 0.25);">
+        <span style="font-size: 0.82rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Awaiting Feedback</span>
+        <div style="font-size: 2rem; font-weight: 800; color: #facc15; margin-top: 4px;">{{ summary.awaiting_feedback|length }}</div>
+        <span style="font-size: 0.8rem; color: #64748b;">Pending your review</span>
+    </div>
+</div>
+
+{% if summary.awaiting_feedback %}
+<div class="alert-box" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #fde047; padding: 14px 18px; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+    <div>
+        <strong>⭐ Feedback Request:</strong> You have completed {{ summary.awaiting_feedback|length }} consultation(s). Please leave feedback to help improve healthcare services.
+    </div>
+    <a href="/appointment/{{ summary.awaiting_feedback[0].id }}/feedback" class="button" style="padding: 6px 14px; font-size: 0.85rem; background: #eab308; color: #0f172a; font-weight: 700;">Leave Review Now</a>
+</div>
+{% endif %}
+
+{% if request.args.get('success') %}
+<div class="search-summary" style="border-color: #16a085; background: rgba(22, 160, 133, 0.2); margin-bottom: 20px; padding: 12px 18px; border-radius: 8px;">
+    <p style="margin: 0; color: #4ade80; font-weight: 600;">✅ {{ request.args.get('success') }}</p>
+</div>
+{% endif %}
+{% if request.args.get('error') %}
+<div class="search-summary" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.2); margin-bottom: 20px; padding: 12px 18px; border-radius: 8px;">
+    <p style="margin: 0; color: #f87171; font-weight: 600;">⚠️ {{ request.args.get('error') }}</p>
+</div>
+{% endif %}
+
+<!-- Upcoming Appointments Section -->
+<section class="card" style="margin-bottom: 28px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h2 style="font-size: 1.25rem; font-weight: 700; color: #f8fafc; margin: 0;">📅 Upcoming & Scheduled Appointments</h2>
+            <p class="muted" style="margin: 4px 0 0 0; font-size: 0.85rem;">Manage your upcoming visits or select items to cancel in bulk</p>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+            <a href="/home" style="color: #38bdf8; font-size: 0.88rem; font-weight: 600;">+ Book New Specialist</a>
+            {% if summary.upcoming %}
+            <!-- Bulk Action Controls Placed Directly Below + Book New Specialist -->
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 2px;">
+                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #94a3b8; cursor: pointer; user-select: none; background: rgba(15, 23, 42, 0.6); padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                    <input type="checkbox" id="selectAllApts" onchange="toggleSelectAll(this)" style="cursor: pointer; accent-color: #38bdf8; width: 15px; height: 15px;">
+                    <span id="selectAllLabel">Select All</span>
+                </label>
+                <button type="submit" form="bulkDeleteForm" name="action" value="selected" id="deleteSelectedBtn" onclick="return confirmDeleteSelected();" style="display: none; padding: 5px 12px; font-size: 0.82rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700;" title="Delete chosen appointments">
+                    🗑️ Delete Selected (<span id="selectedCount">0</span>)
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if summary.upcoming %}
+    <form id="bulkDeleteForm" method="POST" action="/appointments/bulk-delete">
+        <div style="display: grid; gap: 14px;">
+            {% for apt in summary.upcoming %}
+            <div style="background: rgba(20, 35, 60, 0.55); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                <div style="display: flex; align-items: flex-start; gap: 14px; flex: 1; min-width: 260px;">
+                    <input type="checkbox" name="appointment_ids" value="{{ apt.id }}" class="apt-checkbox" onchange="updateSelectedCount()" style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444; margin-top: 4px; flex-shrink: 0;" title="Select this appointment for bulk delete">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                            <span style="font-weight: 700; color: #ffffff; font-size: 1.05rem;">
+                                {{ apt.doctor_name if apt.doctor_name.lower().startswith('dr') else 'Dr. ' ~ apt.doctor_name }}
+                            </span>
+                            <span style="background: rgba(56, 189, 248, 0.18); color: #38bdf8; font-size: 0.76rem; padding: 2px 8px; border-radius: 999px; font-weight: 700;">{{ apt.specialization }}</span>
+                            {% if apt.status == 'Approved' %}
+                            <span style="background: rgba(34, 197, 94, 0.2); color: #4ade80; font-size: 0.76rem; padding: 2px 8px; border-radius: 999px; font-weight: 700;">✓ Approved</span>
+                            {% elif apt.status == 'Rejected' %}
+                            <span style="background: rgba(244, 63, 94, 0.2); color: #f87171; font-size: 0.76rem; padding: 2px 8px; border-radius: 999px; font-weight: 700;">✕ Declined</span>
+                            {% else %}
+                            <span style="background: rgba(245, 158, 11, 0.2); color: #facc15; font-size: 0.76rem; padding: 2px 8px; border-radius: 999px; font-weight: 700;">⏳ Pending Approval</span>
+                            {% endif %}
+                        </div>
+                        <div style="font-size: 0.88rem; color: #94a3b8;">
+                            🏥 {{ apt.hospital }} &nbsp;|&nbsp; 🗓️ <strong>{{ apt.appointment_date }}</strong> &nbsp;|&nbsp; ⏰ <strong>{{ apt.appointment_time }}</strong>
+                        </div>
+                        {% if apt.disease %}
+                        <div style="font-size: 0.84rem; color: #cbd5e1; margin-top: 4px;">
+                            Condition: <em>{{ apt.disease }}</em>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <a href="/appointment/{{ apt.id }}/letter" class="button" style="padding: 7px 14px; font-size: 0.85rem; background: #0284c7; color: white;">📄 Official Letter Slip</a>
+                    <button type="submit" form="singleDeleteForm_{{ apt.id }}" class="button" style="padding: 7px 14px; font-size: 0.85rem; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; transition: background 0.2s;" title="Cancel & Delete this appointment">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </form>
+    <!-- Hidden single delete forms to avoid nesting forms inside forms -->
+    {% for apt in summary.upcoming %}
+    <form id="singleDeleteForm_{{ apt.id }}" method="POST" action="/appointment/{{ apt.id }}/delete" onsubmit="return confirm('Are you sure you want to cancel and delete this appointment for {{ apt.doctor_name }}?');" style="display: none;"></form>
+    {% endfor %}
+    {% else %}
+    <div style="text-align: center; padding: 32px 16px; color: #94a3b8; background: rgba(15, 25, 44, 0.4); border-radius: 10px;">
+        <div style="font-size: 2.2rem; margin-bottom: 8px;">🩺</div>
+        <p style="margin: 0; font-weight: 600;">No upcoming appointments scheduled.</p>
+        <p style="margin: 4px 0 16px; font-size: 0.85rem; color: #64748b;">Find experienced doctors by selecting your affected body part.</p>
+        <a href="/home" class="button" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);">Explore Specialists on Home Page</a>
+    </div>
+    {% endif %}
+</section>
+
+<!-- Recent Consultation History -->
+<section class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="font-size: 1.25rem; font-weight: 700; color: #f8fafc; margin: 0;">📋 Past Consultations & Medical Records</h2>
+        <a href="/my-appointments" style="color: #38bdf8; font-size: 0.88rem; font-weight: 600;">View Full History &rarr;</a>
+    </div>
+
+    {% if summary.past %}
+    <div style="display: grid; gap: 14px;">
+        {% for apt in summary.past[:5] %}
+        <div style="background: rgba(20, 35, 60, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 16px 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <strong style="color: #ffffff; font-size: 1rem;">
+                        {{ apt.doctor_name if apt.doctor_name.lower().startswith('dr') else 'Dr. ' ~ apt.doctor_name }}
+                    </strong>
+                    <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 8px;">({{ apt.hospital }})</span>
+                    <div style="font-size: 0.82rem; color: #64748b; margin-top: 2px;">Consulted on: {{ apt.appointment_date }}</div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <a href="/appointment/{{ apt.id }}/letter" style="font-size: 0.82rem; color: #38bdf8; text-decoration: underline;">View Letter</a>
+                    <form method="POST" action="/appointment/{{ apt.id }}/delete" onsubmit="return confirm('Are you sure you want to delete this record?');" style="margin: 0; display: inline;">
+                        <button type="submit" style="background: none; border: none; color: #f87171; font-size: 0.82rem; cursor: pointer; text-decoration: underline; padding: 0;" title="Delete this consultation record">🗑️ Delete</button>
+                    </form>
+                    {% if not apt.has_feedback %}
+                    <a href="/appointment/{{ apt.id }}/feedback" class="button" style="padding: 4px 10px; font-size: 0.78rem; background: #eab308; color: #0f172a; font-weight: 700;">Leave Review</a>
+                    {% else %}
+                    <span style="font-size: 0.78rem; color: #4ade80;">✓ Reviewed</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if apt.doctor_notes or apt.prescription %}
+            <div style="margin-top: 10px; padding: 10px 14px; background: rgba(15, 25, 44, 0.7); border-radius: 8px; border-left: 3px solid #10b981;">
+                {% if apt.doctor_notes %}
+                <div style="font-size: 0.85rem; color: #e2e8f0; margin-bottom: 4px;">
+                    <strong>Doctor's Notes:</strong> {{ apt.doctor_notes }}
+                </div>
+                {% endif %}
+                {% if apt.prescription %}
+                <div style="font-size: 0.85rem; color: #a7f3d0;">
+                    <strong>Prescription:</strong> {{ apt.prescription }}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted" style="text-align: center; padding: 20px 0;">No completed consultation history yet.</p>
+    {% endif %}
+</section>
+
+<script>
+function toggleSelectAll(master) {
+    const checkboxes = document.querySelectorAll('.apt-checkbox');
+    checkboxes.forEach(cb => cb.checked = master.checked);
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.apt-checkbox');
+    const checked = document.querySelectorAll('.apt-checkbox:checked');
+    const btn = document.getElementById('deleteSelectedBtn');
+    const countSpan = document.getElementById('selectedCount');
+    const master = document.getElementById('selectAllApts');
+    const label = document.getElementById('selectAllLabel');
+    
+    if (countSpan) countSpan.innerText = checked.length;
+    if (btn) {
+        btn.style.display = checked.length > 0 ? 'inline-flex' : 'none';
+    }
+    if (master) {
+        master.checked = (checkboxes.length > 0 && checked.length === checkboxes.length);
+    }
+    if (label) {
+        label.innerText = master && master.checked ? 'Deselect All' : 'Select All';
+    }
+}
+
+function confirmDeleteSelected() {
+    const checked = document.querySelectorAll('.apt-checkbox:checked');
+    if (checked.length === 0) {
+        alert('Please select at least one appointment to delete.');
+        return false;
+    }
+    return confirm(`Are you sure you want to delete the ${checked.length} selected appointment(s)?`);
+}
+</script>
+
+{% endblock %}
+

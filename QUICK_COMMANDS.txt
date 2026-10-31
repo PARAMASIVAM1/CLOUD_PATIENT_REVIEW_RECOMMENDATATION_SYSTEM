@@ -1,0 +1,70 @@
+"""
+QUICK START: Run These Commands in Terminal
+Copy-paste ready! 👇
+"""
+
+# ==================== INSTALLATION ====================
+
+# Step 1: Install all dependencies
+pip install -r requirements_sbert.txt
+
+# OR install individually:
+pip install sentence-transformers torch scikit-learn pandas numpy
+
+
+# ==================== TRAINING ====================
+
+# Step 2: Train SBERT model on your dataset
+python train_sbert.py
+
+
+# ==================== TESTING ====================
+
+# Step 3: Test SBERT in Python interactive mode
+
+python
+
+# Then paste this:
+from sbert_model import predict_sentiment_sbert, analyze_feedback_detailed
+
+# Test 1: Simple sentiment
+sentiment, conf = predict_sentiment_sbert("Doctor was excellent!")
+print(f"Sentiment: {sentiment} ({conf:.1%})")
+
+# Test 2: Detailed analysis
+analysis = analyze_feedback_detailed("Good treatment but high fees")
+print(f"Analysis: {analysis}")
+
+# Exit
+exit()
+
+
+# ==================== INTEGRATION ====================
+
+# Step 4: Use in your Flask app (modify app.py)
+
+# Add these imports at top:
+from sbert_model import predict_sentiment_sbert, analyze_feedback_detailed
+
+# In your feedback analysis route:
+@app.route('/analyze-feedback', methods=['POST'])
+def analyze_feedback():
+    user_feedback = request.form['feedback']
+    sentiment, conf = predict_sentiment_sbert(user_feedback)
+    return f"Sentiment: {sentiment} ({conf:.1%})"
+
+
+# ==================== USEFUL COMMANDS ====================
+
+# See dataset columns:
+python -c "import pandas as pd; df=pd.read_excel('dataset.xlsx'); print(df.columns)"
+
+# Check model size:
+dir sbert_models.pkl
+
+# Test multilingual:
+python -c "from sbert_model import predict_sentiment_sbert; print(predict_sentiment_sbert('चिकित्सक बहुत अच्छे थे'))"
+
+# Benchmark speed:
+python -c "from sbert_model import analyze_feedback_detailed; import time; t=time.time(); analyze_feedback_detailed('test'); print(f'Time: {(time.time()-t)*1000:.1f}ms')"
+

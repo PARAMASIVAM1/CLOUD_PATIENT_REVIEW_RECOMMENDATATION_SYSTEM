@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="page_title">Healthcare AI System</title>
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="lang-en">
+    <header>
+        <div class="brand">
+            <h1 data-i18n="header_title">Healthcare AI System</h1>
+            <p data-i18n="header_subtitle">Multilingual NLP feedback and doctor recommendation portal</p>
+        </div>
+        <div class="header-nav">
+            {% if session.get('logged_in') %}
+                {% if session.get('user_role') == 'admin' %}
+                    <a href="/admin/dashboard" style="color: #38bdf8; font-weight: 700;">⚙️ Admin Dashboard</a>
+                    <a href="/home">Home</a>
+                    <a href="/map">Hospital Map</a>
+                {% elif session.get('user_role') == 'doctor' %}
+                    <a href="/doctor/dashboard" style="color: #22c55e; font-weight: 700;">🩺 Doctor Dashboard</a>
+                    <a href="/query">AI Query</a>
+                    <a href="/map">Hospital Map</a>
+                {% else %}
+                    <a href="/home" data-i18n="home_title">Home</a>
+                    <a href="/my-appointments" style="color: #0284c7; font-weight: 700;">📅 My Appointments</a>
+                    <a href="/query" data-i18n="home_ask_medical_query">AI Medical Query</a>
+                    <a href="/map">Hospital Map</a>
+                {% endif %}
+                <a href="/notifications" style="position: relative; display: inline-flex; align-items: center;">
+                    🔔 Alerts
+                    {% if session.get('unread_notifs', 0) > 0 %}
+                    <span style="position: absolute; top: -6px; right: -10px; background: #ef4444; color: white; border-radius: 50%; font-size: 0.65rem; padding: 2px 6px; font-weight: 800;">
+                        {{ session.get('unread_notifs') }}
+                    </span>
+                    {% endif %}
+                </a>
+                <a href="/logout" class="logout-link" style="color: #f87171;">Logout ({{ session.get('user_name', 'User') }})</a>
+            {% else %}
+                <a href="/home">Home</a>
+                <a href="/login">Login</a>
+                <a href="/enroll">Enroll (Patient)</a>
+                <a href="/doctor/register" style="color: #38bdf8;">Doctor Register</a>
+            {% endif %}
+        </div>
+        <div class="language-switcher" aria-label="Language selector">
+            <label for="language-select" data-i18n="language_label">Language:</label>
+            <select id="language-select" name="language">
+                <option value="en">English</option>
+                <option value="ta">Tamil</option>
+                <option value="hi">Hindi</option>
+                <option value="te">Telugu</option>
+                <option value="kn">Kannada</option>
+                <option value="ml">Malayalam</option>
+            </select>
+        </div>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <p data-i18n="footer_text">Project prototype for patient feedback and medical query assistance.</p>
+    </footer>
+    <script>
+        const TRANSLATIONS = {
+            en: {
+                header_title: "Healthcare AI System",
+                header_subtitle: "Multilingual NLP feedback and doctor recommendation portal",
+                footer_text: "Project prototype for patient feedback and medical query assistance.",
+                language_label: "Language:",
+                home_title: "Select Body Part",
+                home_description: "Choose the treatment area to find specialists, their fees, and patient feedback.",
+                home_major_parts: "Major Parts",
+                home_other_parts: "Other Parts",
+                home_medical_query: "Medical Query Assistant",
+                home_query_description: "Ask symptoms or disease-related questions and get dataset-backed guidance.",
+                home_ask_medical_query: "Ask a Medical Query",
+                home_view_dashboard: "View Search Dashboard",
+                form_search_title: "{part} Specialist Search",
+                form_search_description: "Choose a disease under {part} and then select the matching symptom. This helps recommend the right specialist and hospital.",
+                label_doctor_name: "Doctor Name (optional)",
+                label_age: "Age",
+                label_disease: "Disease",
+                label_symptom: "Symptom",
+                label_max_fee: "Maximum Consultation Fee",
+                label_location: "Preferred Location",
+                option_any_disease: "Any disease",
+                option_any_symptom: "Any symptom",
+                button_find_doctors: "Find Doctors",
+                placeholder_doctor_name: "e.g., Dr. Kumar, Dr. Anitha",
+                placeholder_age: "e.g., 35",
+                placeholder_budget: "Enter budget",
+                placeholder_location: "City or area",
+                query_title: "Medical Query Assistant",
+                query_description: "Enter a disease name or symptom to see common reasons, usual treatment options, and which doctor to consult.",
+                query_heading: "AI guidance for everyday health questions",
+                query_input_label: "Medical query",
+                query_placeholder: "Example: fever, headache, skin rash, tooth pain",
+                button_get_answer: "Get Answer",
+                query_examples_label: "Try these example queries:",
+                query_example_fever: "Fever",
+                query_example_headache: "Headache",
+                query_example_tooth_pain: "Tooth Pain",
+                query_example_skin_rash: "Skin Rash",
+                query_example_diabetes: "Diabetes",
+                query_example_asthma: "Asthma",
+                answer_possible_reasons: "Possible Reasons",
+                answer_common_medicines: "Common Medicines / Treatment",
+                answer_self_care: "Self Care",
+                answer_specialist: "Recommended Specialist",
+                answer_emergency: "See a Doctor Urgently If",
+                answer_extra_guidance: "Extra Guidance",
+                answer_safety_note: "Safety Note",
+                query_empty_title: "Start with a symptom or condition",
+                query_empty_description: "Ask about fever, headache, breathing issues, skin concerns, diabetes, dental pain, and more to get structured guidance.",
+                form_common_conditions: "Common conditions for {part}",
+                results_title: "{part} Specialist Recommendations",
+                results_search_details: "Search details: Age {age}, Fees up to {fees}, Location {location}",
+                results_disease_label: "Disease:",
+                results_symptom_label: "Symptom:",
+                results_specialization: "Specialization:",
+                results_department: "Department:",
+                results_fee: "Fee:",
+                results_location: "Location:",
+                results_average_rating: "Average Rating:",
+                results_feedback_sample: "Feedback sample:",
+                results_sentiment: "Sentiment:",
+                results_review_category: "Review Category:",
+                results_recommendation_score: "Recommendation Score:",
+                results_view_doctor_profile: "View Doctor Profile",
+                results_back_home: "Back to Home",
+                results_ask_medical_query: "Ask a Medical Query",
+                results_no_matching: "No matching doctors were found. Try changing the fee or location filters.",
+                doctor_experience: "Experience:",
+                doctor_qualification: "Qualification:",
+                doctor_location: "Location:",
+                doctor_consultation_fee: "Consultation Fee:",
+                doctor_average_rating: "Average Rating:",
+                doctor_sentiment: "Sentiment:",
+                doctor_recommendation_score: "Recommendation Score:",
+                doctor_review_category: "Review Category:",
+                doctor_patient_review: "Patient Review",
+                doctor_professional_overview: "Professional overview",
+                doctor_new_feedback: "New Feedback:",
+                doctor_patient_rating: "Patient Rating:",
+                doctor_add_feedback: "Add Feedback",
+                doctor_rating_label: "Rating (1-5)",
+                doctor_submit_review: "Submit Review",
+                doctor_feedback_placeholder: "Write your feedback...",
+                doctor_find_similar: "Find Similar Specialists",
+                dashboard_title: "Healthcare Search Dashboard",
+                dashboard_description: "Browse the dataset summary, top-rated doctors, and common conditions in the hospital dataset.",
+                dashboard_total_records: "Total Records",
+                dashboard_top_diseases: "Top Diseases",
+                dashboard_top_symptoms: "Top Symptoms",
+                dashboard_top_rated: "Top Rated Doctors",
+                dashboard_back_home: "Back to Home",
+                dashboard_search_by_condition: "Search by Condition",
+                part_heart: "Heart",
+                part_liver: "Liver",
+                part_lungs: "Lungs",
+                part_brain: "Brain / Neuro",
+                part_kidney: "Kidney",
+                part_eye: "Eye",
+                part_bones: "Bones",
+                part_ent: "ENT",
+                part_skin_hair: "Skin & Hair",
+                part_teeth: "Teeth",
+                part_general: "General",
+            },
+            ta: {
+                header_title: "சுகாதார AI சிஸ்டம்",
+                header_subtitle: "பன்மொழி NLP கருத்து மற்றும் மருத்துவர் பரிந்துரை போர்டல்",
+                footer_text: "உடல்நலம் பின்னூட்டம் மற்றும் மருத்துவக் கேள்வி உதவி மாதிரிப் பயனர்.",
+                language_label: "மொழி:",
+                home_title: "உடல் பகுதியை தேர்ந்தெடுக்கவும்",
+                home_description: "சிறந்த மருத்துவரை, கட்டணத்தை மற்றும் நோயாளி கருத்தை கண்டுபிடிக்க உங்கள் பகுதிகளை தேர்வு செய்யவும்.",
+                home_major_parts: "முக்கிய பகுதிகள்",
+                home_other_parts: "மற்ற பகுதிகள்",
+                home_medical_query: "மருத்துவக் கேள்வி உதவி",
+                home_query_description: "அறிகுறிகள் அல்லது நோய்களைப் பற்றி கேளுங்கள் மற்றும் தரவின் அடிப்படையில் வழிகாட்டி பெறு.",
+                home_ask_medical_query: "மருத்துவக் கேள்வி கேள்",
+                home_view_dashboard: "டேஷ்போர்டு காண்க",
+                form_search_title: "{part} நிபுணர் தேடல்",
+                form_search_description: "{part} கீழ் நோயை தேர்ந்தெடுத்து பொருந்தும் அறிகுறியை தேர்வு செய்யவும். இது சரியான நிபுணரையும் மருத்துவமனையையும் பரிந்துரைக்க உதவும்.",
+                label_doctor_name: "மருத்துவர் பெயர் (தேர்வுச்செய்யவில்லை)",
+                label_age: "வயது",
+                label_disease: "நோய்",
+                label_symptom: "அறிகுறி",
+                label_max_fee: "அதிகபட்ச ஆலோசனை கட்டணம்",
+                label_location: "விருப்ப இடம்",
+                option_any_disease: "எந்த நோய்",
+                option_any_symptom: "எந்த அறிகுறியும்",
+                button_find_doctors: "மருத்துவர்கள் தேடு",
+                placeholder_doctor_name: "உதாரணம்: Dr. Kumar, Dr. Anitha",
+                placeholder_age: "உதாரணம்: 35",
+                placeholder_budget: "பட்ஜெட் உள்ளிடவும்",
+                placeholder_location: "நகரம் அல்லது பகுதி",
+                query_title: "மருத்துவக் கேள்வி உதவி",
+                query_description: "ஒரு நோயின் பெயர் அல்லது அறிகுறியை உள்ளிடவும் மற்றும் பொதுவான காரணங்கள், சிகிச்சை விருப்பங்கள் மற்றும் எந்த மருத்துவரைப் பார்க்க வேண்டும் என்பதை காணுங்கள்.",
+                query_heading: "அன்றாட உடல்நலக் கேள்விகளுக்கான AI வழிகாட்டி",
+                query_input_label: "மருத்துவக் கேள்வி",
+                query_placeholder: "உதாரணம்: காய்ச்சல், தலைவலி, தோல் தடிப்பு, பல் வலி",
+                button_get_answer: "பதில் பெறுக",
+                query_examples_label: "இந்த உதாரணக் கேள்விகளை முயற்சிக்கவும்:",
+                query_example_fever: "காய்ச்சல்",
+                query_example_headache: "தலைவலி",
+                query_example_tooth_pain: "பல் வலி",
+                query_example_skin_rash: "தோல் தடிப்பு",
+                query_example_diabetes: "சர்க்கரை நோய்",
+                query_example_asthma: "ஆஸ்துமா",
+                answer_possible_reasons: "சாத்தியமான காரணங்கள்",
+                answer_common_medicines: "பொதுவான மருந்துகள் / சிகிச்சை",
+                answer_self_care: "சுய பராமரிப்பு",
+                answer_specialist: "பரிந்துரைக்கப்பட்ட நிபுணர்",
+                answer_emergency: "உடனடியாக மருத்துவரை பார்க்க வேண்டிய அறிகுறிகள்",
+                answer_extra_guidance: "கூடுதல் வழிகாட்டி",
+                answer_safety_note: "பாதுகாப்பு குறிப்பு",
+                query_empty_title: "ஒரு அறிகுறி அல்லது நிலைமையுடன் தொடங்குங்கள்",
+                query_empty_description: "காய்ச்சல், தலைவலி, மூச்சுத் திணறல், தோல் பிரச்சினைகள், சர்க்கரை நோய், பல் வலி போன்றவற்றைப் பற்றி கேட்டு ஒழுங்கான வழிகாட்டுதலைப் பெறுங்கள்.",
+                form_common_conditions: "{part} க்கான பொதுவான நிலைகள்",
+                results_title: "{part} நிபுணர் பரிந்துரைகள்",
+                results_search_details: "தேடல் விவரங்கள்: வயது {age}, கட்டணம் வரை {fees}, இடம் {location}",
+                results_disease_label: "நோய்:",
+                results_symptom_label: "அறிகுறி:",
+                results_specialization: "நிபுணத்துவம்:",
+                results_department: "துறை:",
+                results_fee: "கட்டணம்:",
+                results_location: "இடம்:",
+                results_average_rating: "சராசரி மதிப்பீடு:",
+                results_feedback_sample: "கருத்து உதாரணம்:",
+                results_sentiment: "உணர்வு:",
+                results_review_category: "மதிப்பாய்வு வகை:",
+                results_recommendation_score: "பரிந்துரை மதிப்பெண்:",
+                results_view_doctor_profile: "மருத்துவர் சுயவிவரம்",
+                results_back_home: "வீட்டிற்கு",
+                results_ask_medical_query: "மருத்துவக் கேள்வி கேள்",
+                results_no_matching: "பொருந்தும் மருத்துவர் கிடைக்கவில்லை. கட்டணத்தை அல்லது இடத்தை மாற்றி முயற்சிக்கவும்.",
+                doctor_experience: "அனுபவம்:",
+                doctor_qualification: "தகுதி:",
+                doctor_location: "இடம்:",
+                doctor_consultation_fee: "ஆலோசனை கட்டணம்:",
+                doctor_average_rating: "சராசரி மதிப்பீடு:",
+                doctor_sentiment: "உணர்வு:",
+                doctor_recommendation_score: "பரிந்துரை மதிப்பெண்:",
+                doctor_review_category: "மதிப்பாய்வு வகை:",
+                doctor_patient_review: "நோயாளர் மதிப்புரை",
+                doctor_professional_overview: "தொழில்முறை சுருக்கம்",
+                doctor_new_feedback: "புதிய கருத்து:",
+                doctor_patient_rating: "நோயாளர் மதிப்பீடு:",
+                doctor_add_feedback: "கருத்து சேர்க்கவும்",
+                doctor_rating_label: "மதிப்பீடு (1-5)",
+                doctor_submit_review: "மதிப்புரை சமர்ப்பி",
+                doctor_feedback_placeholder: "உங்கள் கருத்தை எழுதவும்...",
+                doctor_find_similar: "தமான நிபுணர்களைத் தேடு",
+                dashboard_title: "சுகாதார தேடல் டேஷ்போர்டு",
+                dashboard_description: "தரவுத்தளத்தின் சுருக்கம், சிறந்த மதிப்பீட்டென்ற மருத்துவர்கள் மற்றும் பொது நிலைகளை உலாவுங்கள்.",
+                dashboard_total_records: "மொத்த பதிவுகள்",
+                dashboard_top_diseases: "மேல்நிலை நோய்கள்",
+                dashboard_top_symptoms: "மேல்நிலை அறிகுறிகள்",
+                dashboard_top_rated: "சிறந்த மதிப்பீட்டுள்ள மருத்துவர்கள்",
+                dashboard_back_home: "மீண்டும் வீட்டிற்க",
+                dashboard_search_by_condition: "நிலை மூலம் தேடு",
+                part_heart: "இதயம்",
+                part_liver: "கல்லீரல்",
+                part_lungs: "நுரையீரல்",
+                part_brain: "மூளை / நரம்பு",
+                part_kidney: "கிட்னி",
+                part_eye: "கண்",
+                part_bones: "எலும்புகள்",
+                part_ent: "காது மூக்கு தொண்டை",
+                part_skin_hair: "தோல் & தலைமுடி",
+                part_teeth: "பற்கள்",
+                part_general: "பொது",
+            },
+            hi: {
+                header_title: "हेल्थकेयर एआई सिस्टम",
+                header_subtitle: "बहुभाषी NLP फ़ीडबैक और डॉक्टर अनुशंसा पोर्टल",
+                footer_text: "रोगी फ़ीडबैक और चिकित्सा प्रश्न सहायता के लिए प्रोटोटाइप.",
+                language_label: "भाषा:",
+                home_title: "शरीर का भाग चुनें",
+                home_description: "विशेषज्ञों, उनकी फीस, और रोगी फ़ीडबैक को खोजने के लिए उपचार क्षेत्र चुनें.",
+                home_major_parts: "मुख्य भाग",
+                home_other_parts: "अन्य भाग",
+                home_medical_query: "मेडिकल क्वेरी सहायक",
+                home_query_description: "लक्षण या रोग संबंधित प्रश्न पूछें और डेटा-आधारित मार्गदर्शन प्राप्त करें.",
+                home_ask_medical_query: "मेडिकल क्वेरी पूछें",
+                home_view_dashboard: "डैशबोर्ड देखें",
+                form_search_title: "{part} विशेषज्ञ खोज",
+                form_search_description: "{part} के तहत रोग चुनें और फिर मिलते-जुलते लक्षण चुनें। यह सही विशेषज्ञ और अस्पताल की सिफारिश करने में मदद करता है.",
+                label_doctor_name: "डॉक्टर का नाम (वैकल्पिक)",
+                label_age: "उम्र",
+                label_disease: "रोग",
+                label_symptom: "लक्षण",
+                label_max_fee: "अधिकतम परामर्श शुल्क",
+                label_location: "पसंदीदा स्थान",
+                option_any_disease: "कोई भी रोग",
+                option_any_symptom: "कोई भी लक्षण",
+                button_find_doctors: "डॉक्टर खोजें",
+                placeholder_doctor_name: "जैसे: Dr. Kumar, Dr. Anitha",
+                placeholder_age: "उदाहरण: 35",
+                placeholder_budget: "बजट दर्ज करें",
+                placeholder_location: "शहर या क्षेत्र",
+                query_title: "मेडिकल क्वेरी सहायक",
+                query_description: "एक रोग का नाम या लक्षण डालें और सामान्य कारण, उपचार विकल्प, और किस डॉक्टर से संपर्क करना चाहिए देखें.",
+                query_heading: "रोज़मर्रा के स्वास्थ्य प्रश्नों के लिए AI मार्गदर्शन",
+                query_input_label: "चिकित्सा प्रश्न",
+                query_placeholder: "उदाहरण: बुखार, सिरदर्द, त्वचा पर चकत्ता, दांत का दर्द",
+                button_get_answer: "उत्तर प्राप्त करें",
+                query_examples_label: "इन उदाहरण प्रश्नों को आज़माएँ:",
+                query_example_fever: "बुखार",
+                query_example_headache: "सिरदर्द",
+                query_example_tooth_pain: "दांत दर्द",
+                query_example_skin_rash: "त्वचा पर चकत्ता",
+                query_example_diabetes: "डायबिटीज",
+                query_example_asthma: "अस्थमा",
+                answer_possible_reasons: "संभावित कारण",
+                answer_common_medicines: "सामान्य दवाइयाँ / उपचार",
+                answer_self_care: "स्व-देखभाल",
+                answer_specialist: "अनुशंसित विशेषज्ञ",
+                answer_emergency: "अगर तुरंत डॉक्टर को देखें",
+                answer_extra_guidance: "अतिरिक्त मार्गदर्शन",
+                answer_safety_note: "सुरक्षा नोट",
+                query_empty_title: "किसी लक्षण या स्थिति से शुरू करें",
+                query_empty_description: "बुखार, सिरदर्द, सांस लेने में परेशानी, त्वचा की समस्या, मधुमेह, दांत दर्द और अन्य के बारे में पूछकर संरचित मार्गदर्शन पाएं.",
+                form_common_conditions: "{part} के लिए सामान्य स्थितियां",
+                results_title: "{part} विशेषज्ञ सिफ़ारिशें",
+                results_search_details: "खोज विवरण: उम्र {age}, फीस तक {fees}, स्थान {location}",
+                results_disease_label: "रोग:",
+                results_symptom_label: "लक्षण:",
+                results_specialization: "विशेषज्ञता:",
+                results_department: "विभाग:",
+                results_fee: "शुल्क:",
+                results_location: "स्थान:",
+                results_average_rating: "औसत रेटिंग:",
+                results_feedback_sample: "फ़ीडबैक नमूना:",
+                results_sentiment: "भावना:",
+                results_review_category: "समीक्षा श्रेणी:",
+                results_recommendation_score: "अनुशंसा स्कोर:",
+                results_view_doctor_profile: "डॉक्टर प्रोफ़ाइल देखें",
+                results_back_home: "घर वापसी",
+                results_ask_medical_query: "मेडिकल क्वेरी पूछें",
+                results_no_matching: "कोई मिलते-जुलते डॉक्टर नहीं मिले। फीस या स्थान बदलकर पुनः प्रयास करें.",
+                doctor_experience: "अनुभव:",
+                doctor_qualification: "योग्यता:",
+                doctor_location: "स्थान:",
+                doctor_consultation_fee: "परामर्श शुल्क:",
+                doctor_average_rating: "औसत रेटिंग:",
+                doctor_sentiment: "भावना:",
+                doctor_recommendation_score: "अनुशंसा स्कोर:",
+                doctor_review_category: "समीक्षा श्रेणी:",
+                doctor_patient_review: "रोगी समीक्षा",
+                doctor_professional_overview: "पेशेवर अवलोकन",
+                doctor_new_feedback: "नई प्रतिक्रिया:",
+                doctor_patient_rating: "रोगी रेटिंग:",
+                doctor_add_feedback: "प्रतिक्रिया जोड़ें",
+                doctor_rating_label: "रेटिंग (1-5)",
+                doctor_submit_review: "समीक्षा जमा करें",
+                doctor_feedback_placeholder: "अपनी प्रतिक्रिया लिखें...",
+                doctor_find_similar: "समान विशेषज्ञ खोजें",
+                dashboard_title: "हेल्थकेयर खोज डैशबोर्ड",
+                dashboard_description: "डेटासेट सारांश, उच्च रेटेड डॉक्टर और सामान्य स्थितियों को ब्राउज़ करें.",
+                dashboard_total_records: "कुल रिकॉर्ड",
+                dashboard_top_diseases: "शीर्ष रोग",
+                dashboard_top_symptoms: "शीर्ष लक्षण",
+                dashboard_top_rated: "शीर्ष रेटेड डॉक्टर",
+                dashboard_back_home: "घर वापसी",
+                dashboard_search_by_condition: "स्थिति से खोजें",
+                part_heart: "हृदय",
+                part_liver: "यकृत",
+                part_lungs: "फेफड़े",
+                part_brain: "मस्तिष्क / न्यूरो",
+                part_kidney: "किडनी",
+                part_eye: "आंख",
+                part_bones: "अस्थियां",
+                part_ent: "ईएनटी",
+                part_skin_hair: "त्वचा और बाल",
+                part_teeth: "दाँत",
+                part_general: "सामान्य",
+            },
+            te: {
+                header_title: "హెల్త్‌కేర్ AI సిస్టమ్",
+                header_subtitle: "బహుభాషా NLP అభిప్రాయం మరియు డాక్టర్ సిఫార్సు పోర్టల్",
+                footer_text: "రోగి అభిప్రాయం మరియు వైద్య ప్రశ్నలకు సహాయం చేయడానికి నమూనా.",
+                language_label: "భాష:",
+                home_title: "శరీర భాగం ఎంచుకోండి",
+                home_description: "నిపుణులను, వారి ఫీజులను మరియు రోగి ఫీడ్‌బ్యాక్‌ను కనుగొనడానికి చికిత్స ప్రాంతాన్ని ఎంచుకోండి.",
+                home_major_parts: "ప్రధాన భాగాలు",
+                home_other_parts: "ఇతర భాగాలు",
+                home_medical_query: "మెడికల్ ప్రశ్న సహాయకుడు",
+                home_query_description: "లక్షణాలు లేదా వ్యాధుల గురించి ప్రశ్నలు అడగండి మరియు డేటా ఆధారిత మార్గదర్శకత్వాన్ని పొందండి.",
+                home_ask_medical_query: "మెడికల్ ప్రశ్న అడగండి",
+                home_view_dashboard: "డ్యాష్‌బోర్డు చూడండి",
+                form_search_title: "{part} నిపుణుల శోధన",
+                form_search_description: "{part} కింద వ్యాధిని ఎంచుకుని సరైన లక్షణాన్ని ఎంచుకోండి. ఇది సరైన నిపుణుని మరియు హాస్పిటల్‌ను సిఫార్సు చేయడంలో సహాయపడుతుంది.",
+                label_doctor_name: "డాక్టర్ పేరు (ఐచ్ఛికంగా)",
+                label_age: "వయసు",
+                label_disease: "రోగం",
+                label_symptom: "లక్షణం",
+                label_max_fee: "కనిష్ట సలహా ఫీజు",
+                label_location: "ఇష్టమైన ప్రదేశం",
+                option_any_disease: "ఏ రోగం అయినా",
+                option_any_symptom: "ఏ లక్షణం అయినా",
+                button_find_doctors: "డాక్టర్‌లను వెతకండి",
+                placeholder_doctor_name: "ఉదాహరణ: Dr. Kumar, Dr. Anitha",
+                placeholder_age: "ఉదాహరణ: 35",
+                placeholder_budget: "బడ్జెట్ నమోదు చేయండి",
+                placeholder_location: "నగరం లేదా ప్రాంతం",
+                query_title: "మెడికల్ ప్రశ్న సహాయకుడు",
+                query_description: "రోగం లేదా లక్షణం పేరు నమోదు చేసి సాధ్యమైన కారణాలు, సాధారణ చికిత్స ఎంపికలు మరియు ఏ డాక్టర్‌ను సంప్రదించాలో చూడండి.",
+                query_heading: "ప్రతిరోజు ఆరోగ్య ప్రశ్నల కోసం AI మార్గదర్శనం",
+                query_input_label: "వైద్య ప్రశ్న",
+                query_placeholder: "ఉదాహరణ: feveర, తలనొప్పి, చర్మ ర‌శ్, పళ్ళు నొప్పి",
+                button_get_answer: "పასუხం పొందండి",
+                query_examples_label: "ఈ ఉదాహరణ ప్రశ్నలను ప్రయత్నించండి:",
+                query_example_fever: "కాయిశ్చం",
+                query_example_headache: "తలనొప్పి",
+                query_example_tooth_pain: "పళ్ళు నొప్పి",
+                query_example_skin_rash: "చర్మ ర‌శ్",
+                query_example_diabetes: "డయాబెటిస్",
+                query_example_asthma: "అస్తమా",
+                answer_possible_reasons: "సాధ్యమైన కారణాలు",
+                answer_common_medicines: "సాధారణ మందులు / చికిత్స",
+                answer_self_care: "స్వయం సంరక్షణ",
+                answer_specialist: "సిఫార్సు చేయబడిన నిపుణుడు",
+                answer_emergency: "త్వరగా డాక్టర్‌ను చూడండి",
+                answer_extra_guidance: "అదనపు మార్గదర్శకం",
+                answer_safety_note: "భద్రతా గమనిక",
+                query_empty_title: "ఒక లక్షణం లేదా పరిస్థితితో ప్రారంభించండి",
+                query_empty_description: "జ్వరం, తలనొప్పి, శ్వాస సమస్యలు, చర్మ సమస్యలు, మధుమేహం, పంటి నొప్పి తదితరాల గురించి అడిగి క్రమబద్ధమైన మార్గదర్శకత్వాన్ని పొందండి.",
+                form_common_conditions: "{part} కోసం సాధారణ పరిస్థితులు",
+                results_title: "{part} నిపుణుల సిఫార్సులు",
+                results_search_details: "శోధన వివరాలు: వయసు {age}, ఫీజు వరకు {fees}, ప్రదేశం {location}",
+                results_disease_label: "రోగం:",
+                results_symptom_label: "లక్షణం:",
+                results_specialization: "నిపుణత:",
+                results_department: "విభాగం:",
+                results_fee: "ఫీజు:",
+                results_location: "ప్రదేశం:",
+                results_average_rating: "సగటు రేటింగ్:",
+                results_feedback_sample: "ఫీడ్‌బ్యాక్ నమూనా:",
+                results_sentiment: "భావం:",
+                results_review_category: "సమీక్ష వర్గం:",
+                results_recommendation_score: "సిఫార్సు స్కోరు:",
+                results_view_doctor_profile: "డాక్టర్ ప్రొఫైల్ చూడండి",
+                results_back_home: "ఇంటికి తిరుగు",
+                results_ask_medical_query: "మెడికల్ ప్రశ్న అడగండి",
+                results_no_matching: "ఇలాగే డాక్టర్లు కనబడలేదు. ఫీజు లేదా ప్రదేశాన్ని మార్చి ప్రయత్నించండి.",
+                doctor_experience: "అనుభవం:",
+                doctor_qualification: "అర్హత:",
+                doctor_location: "ప్రదేశం:",
+                doctor_consultation_fee: "కౌన్సెలింగ్ ఫీజు:",
+                doctor_average_rating: "సగటు రేటింగ్:",
+                doctor_sentiment: "భావం:",
+                doctor_recommendation_score: "సిఫార్సు స్కోరు:",
+                doctor_review_category: "సమీక్ష వర్గం:",
+                doctor_patient_review: "రోగి సమీక్ష",
+                doctor_professional_overview: "వృత్తిపరమైన సమీక్ష",
+                doctor_new_feedback: "కొత్త అభిప్రాయం:",
+                doctor_patient_rating: "రోగి రేటింగ్:",
+                doctor_add_feedback: "అభిప్రాయం జోడించండి",
+                doctor_rating_label: "రేటింగ్ (1-5)",
+                doctor_submit_review: "సమీక్ష సమర్పించండి",
+                doctor_feedback_placeholder: "మీ అభిప్రాయం వ్రాయండి...",
+                doctor_find_similar: "సమాన నిపుణులని వెతకండి",
+                dashboard_title: "హెల్త్‌కేర్ శోధన డ్యాష్‌బోర్డు",
+                dashboard_description: "డేటాసెట్ సారాంశం, హై రేటెడ్ డాక్టర్లు మరియు సాధారణ పరిస్థితులను బ్రౌజ్ చేయండి.",
+                dashboard_total_records: "మొత్తం రికార్డులు",
+                dashboard_top_diseases: "టాప్ వ్యాధులు",
+                dashboard_top_symptoms: "టాప్ లక్షణాలు",
+                dashboard_top_rated: "టాప్ రేటెడ్ డాక్టర్లు",
+                dashboard_back_home: "ఇంటికి తిరుగు",
+                dashboard_search_by_condition: "స్థితి ద్వారా శోధించండి",
+                part_heart: "హృదయం",
+                part_liver: "కాలేయం",
+                part_lungs: "ఫెఫ reag",
+                part_brain: "మెదడు / న్యూరో",
+                part_kidney: "వృకాలు",
+                part_eye: "కంటి",
+                part_bones: "ఎముకలు",
+                part_ent: "కాదు మూతికి గుడ్డు",
+                part_skin_hair: "చర్మం & జుట్టు",
+                part_teeth: "పళ్ళు",
+                part_general: "సాధారణ",
+            },
+            kn: {
+                header_title: "ಆರೋಗ್ಯ ಆರೈಕೆ AI ವ್ಯವಸ್ಥೆ",
+                header_subtitle: "ಬಹುಭಾಷಾ NLP ಪ್ರತಿಕ್ರಿಯೆ ಮತ್ತು ವೈದ್ಯ ಶಿಫಾರಸು ಪೋರ್ಟಲ್",
+                footer_text: "ರೋಗಿಯ ಪ್ರತಿಕ್ರಿಯೆ ಮತ್ತು ವೈದ್ಯ ಪ್ರಶ್ನೆಗಳ ಸಹಾಯಕ್ಕಾಗಿ ಪ್ರೋಟೋಟೈಪ್.",
+                language_label: "ಭಾಷೆ:",
+                home_title: "ದೇಹದ ಭಾಗವನ್ನು ಆರಿಸಿ",
+                home_description: "ತಜ್ಞರನ್ನು, ಅವರ ಶುಲ್ಕವನ್ನು ಮತ್ತು ರೋಗಿಯ ಪ್ರತಿಕ್ರಿಯೆಯನ್ನು ಕಂಡುಹಿಡಿಯಲು ಚಿಕಿತ್ಸೆ ಪ್ರದೇಶವನ್ನು ಆರಿಸಿ.",
+                home_major_parts: "ಪ್ರಮುಖ ಭಾಗಗಳು",
+                home_other_parts: "ಇತರೆ ಭಾಗಗಳು",
+                home_medical_query: "ವೈದ್ಯಕೀಯ ಪ್ರಶ್ನೆ ಸಹಾಯಕ",
+                home_query_description: "ಲಕ್ಷಣಗಳು ಅಥವಾ ರೋಗಗಳ ಬಗ್ಗೆ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಿ ಮತ್ತು ಡೇಟಾ ಆಧಾರಿತ ಮಾರ್ಗದರ್ಶನ ಪಡೆಯಿರಿ.",
+                home_ask_medical_query: "ವೈದ್ಯಕೀಯ ಪ್ರಶ್ನೆ ಕೇಳಿ",
+                home_view_dashboard: "ಡ್ಯಾಷ್‌ಬೋರ್ಡ್ ವೀಕ್ಷಿಸಿ",
+                form_search_title: "{part} ವಿಶೇಷজ্ঞರ ಹುಡುಕು",
+                form_search_description: "{part} ಅಡಿಯಲ್ಲಿ ರೋಗವನ್ನು ಆಯ್ಕೆಮಾಡಿ ಮತ್ತು ತಕ್ಕ ಲಕ್ಷಣಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ. ಇದು ಸರಿಯಾದ ವಿಶೇಷজ্ঞರನ್ನು ಮತ್ತು ಆಸ್ಪತ್ರೆಗೆ ಶಿಫಾರಸು ಮಾಡಲು ಸಹಾಯ ಮಾಡುತ್ತದೆ.",
+                label_doctor_name: "ವೈದ್ಯರ ಹೆಸರು (ಐಚ್ಛಿಕ)",
+                label_age: "ವಯಸ್ಸು",
+                label_disease: "ರೋಗ",
+                label_symptom: "ಲક્ષણ",
+                label_max_fee: "ಗರಿಷ್ಠ ಸಲಹಾ ಶುಲ್ಕ",
+                label_location: "ಆವಶ್ಯಕ ಸ್ಥಳ",
+                option_any_disease: "ಯಾವುದೇ ರೋಗ",
+                option_any_symptom: "ಯಾವುದೇ ಲಕ್ಷಣ",
+                button_find_doctors: "ವೈದ್ಯರನ್ನು ಹುಡುಕಿ",
+                placeholder_doctor_name: "ಉದಾಹರಣೆ: Dr. Kumar, Dr. Anitha",
+                placeholder_age: "ಉದಾಹರಣೆ: 35",
+                placeholder_budget: "ಬಜೆಟ್ ನಮೂದಿಸಿ",
+                placeholder_location: "ನಗರ ಅಥವಾ ಪ್ರದೇಶ",
+                query_title: "ವೈದ್ಯಕೀಯ ಪ್ರಶ್ನೆ ಸಹಾಯಕ",
+                query_description: "ಒಂದು ರೋಗದ ಹೆಸರು ಅಥವಾ ಲಕ್ಷಣವನ್ನು ನಮೂದಿಸಿ ಮತ್ತು ಸಾಮಾನ್ಯ ಕಾರಣಗಳು, ಚಿಕಿತ್ಸೆ વિકಲ್ಪಗಳು ಮತ್ತು ಯಾವ ವೈದ್ಯರನ್ನು ಸಲಹೆ ಮಾಡಬೇಕು ಎಂಬುದನ್ನು ನೋಡಿ.",
+                query_heading: "ದೈನಂದಿನ ಆರೋಗ್ಯ ಪ್ರಶ್ನೆಗಳಿಗೆ AI ಮಾರ್ಗದರ್ಶನ",
+                query_input_label: "ವೈದ್ಯಕೀಯ ಪ್ರಶ್ನೆ",
+                query_placeholder: "ಉದಾಹರಣೆ: ಕಣ್ಣೀರ, ತಲೆನೋವು, ಚರ್ಮದ ರ್ಯಾಶ್, ಹಲ್ಲು ನೋವು",
+                button_get_answer: "ಉತ್ತರ ಪಡೆಯಿರಿ",
+                query_examples_label: "ಈ ಉದಾಹರಣೆ ಪ್ರಶ್ನೆಗಳನ್ನು ಪ್ರಯತ್ನಿಸಿ:",
+                query_example_fever: "ಕಾಯಿಲೆ",
+                query_example_headache: "ತಲೆನೋವು",
+                query_example_tooth_pain: "ಹಲ್ಲಿನ ನೋವು",
+                query_example_skin_rash: "ಚರ್ಮದ ರ್ಯಾಶ್",
+                query_example_diabetes: "ಮಧುಮೇಹ",
+                query_example_asthma: "ಅಸ್ಥಮಾ",
+                answer_possible_reasons: "ಸಾಧ್ಯ ಕಾರಣಗಳು",
+                answer_common_medicines: "ಸಾಮಾನ್ಯ ಔಷಧಿಗಳು / ಚಿಕಿತ್ಸೆ",
+                answer_self_care: "ಸ್ವ-ಸಾಂರಕ್ಷಣೆ",
+                answer_specialist: "ಶಿಫಾರಸು ಮಾಡಿದ ತಜ್ಞ",
+                answer_emergency: "ತ್ವರಿತವಾಗಿ ವೈದ್ಯರನ್ನು ನೋಡಿ",
+                answer_extra_guidance: "ಆಾಕ್ಷಿತ ಮಾರ್ಗದರ್ಶನ",
+                answer_safety_note: "ಭದ್ರತೆ ಸೂಚನೆ",
+                query_empty_title: "ಒಂದು ಲಕ್ಷಣ ಅಥವಾ ಸ್ಥಿತಿಯಿಂದ ಪ್ರಾರಂಭಿಸಿ",
+                query_empty_description: "ಜ್ವರ, ತಲೆನೋವು, ಉಸಿರಾಟದ ಸಮಸ್ಯೆಗಳು, ಚರ್ಮದ ತೊಂದರೆಗಳು, ಮಧುಮೇಹ, ಹಲ್ಲಿನ ನೋವು ಮತ್ತು ಇನ್ನಿತರ ವಿಷಯಗಳ ಬಗ್ಗೆ ಕೇಳಿ, ಕ್ರಮಬದ್ಧ ಮಾರ್ಗದರ್ಶನ ಪಡೆಯಿರಿ.",
+                form_common_conditions: "{part} ಗಾಗಿ ಸಾಮಾನ್ಯ ಪರಿಸ್ಥಿತಿಗಳು",
+                results_title: "{part} ವಿಶೇಷজ্ঞರ ಶಿಫಾರಸುಗಳು",
+                results_search_details: "ಶೋಧನೆಯ ವಿವರಗಳು: ವಯಸ್ಸು {age}, ಶುಲ್ಕದವರೆಗೆ {fees}, ಸ್ಥಳ {location}",
+                results_disease_label: "ರೋಗ:",
+                results_symptom_label: "ಲಕ್ಷಣ:",
+                results_specialization: "ತಜ್ಞತೆ:",
+                results_department: "ವಿಭಾಗ:",
+                results_fee: "ಶುಲ್ಕ:",
+                results_location: "ಸ್ಥಳ:",
+                results_average_rating: "ಸರಾಸರಿ reಟಿಂಗ್:",
+                results_feedback_sample: "ಪ್ರತಿಕ್ರಿಯೆ ಮಾದರಿ:",
+                results_sentiment: "ಭಾವನೆ:",
+                results_review_category: "ವಿಮರ್ಶಾ ವರ್ಗ:",
+                results_recommendation_score: "ಶಿಫಾರಸು ಅಂಕ:",
+                results_view_doctor_profile: "ವೈದ್ಯರ ಪ್ರೊಫೈಲ್ ನೋಡಿ",
+                results_back_home: "ಮನೆಗೆ ಹಿಂತಿರುಗಿ",
+                results_ask_medical_query: "ವೈದ್ಯಕೀಯ ಪ್ರಶ್ನೆ ಕೇಳಿ",
+                results_no_matching: "ಯಾವುದೇ ಹೊಂದಿಕೆ ವೈದ್ಯರು ಕಾಣಿಸಲಿಲ್ಲ. ಶುಲ್ಕ ಅಥವಾ ಸ್ಥಳವನ್ನು ಬದಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+                doctor_experience: "ಅನುಭವ:",
+                doctor_qualification: "ಅರ್ಹತೆ:",
+                doctor_location: "ಸ್ಥಳ:",
+                doctor_consultation_fee: "ಸಲಹಾ ಶುಲ್ಕ:",
+                doctor_average_rating: "ಸರಾಸರಿ ರೇಟಿಂಗ್:",
+                doctor_sentiment: "ಭಾವನೆ:",
+                doctor_recommendation_score: "ಶಿಫಾರಸು ಅಂಕ:",
+                doctor_review_category: "ವಿಮರ್ಶಾ ವರ್ಗ:",
+                doctor_patient_review: "ರೋಗಿಯ ವಿಮರ್ಶೆ",
+                doctor_professional_overview: "ವೃತ್ತಿಪರ ಅವಲೋಕನ",
+                doctor_new_feedback: "ಹೊಸ ಪ್ರತಿಕ್ರಿಯೆ:",
+                doctor_patient_rating: "ರೋಗಿಯ ರೇಟಿಂಗ್:",
+                doctor_add_feedback: "ಪ್ರತಿಕ್ರಿಯೆ ಸೇರಿಸಿ",
+                doctor_rating_label: "ರೇಟಿಂಗ್ (1-5)",
+                doctor_submit_review: "ವಿಮರ್ಶೆ ಸಲ್ಲಿಸಿ",
+                doctor_feedback_placeholder: "ನಿಮ್ಮ ಪ್ರತಿಕ್ರಿಯೆಯನ್ನು ಬರೆಯಿರಿ...",
+                doctor_find_similar: "ಸಮಾನ ತಜ್ಞರನ್ನು ಹುಡುಕಿ",
+                dashboard_title: "ಆರೋಗ್ಯ ಹುಡುಕಾಟ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+                dashboard_description: "ಡೇಟಾಸೆಟ್ ಸಾರಾಂಶ, ಉನ್ನತ ರೇಟಿಂಗ್ ಹೊಂದಿರುವ ವೈದ್ಯರನ್ನು ಮತ್ತು ಸಾಮಾನ್ಯ ಪರಿಸ್ಥಿತಿಗಳನ್ನು ಬ್ರೌಸ್ ಮಾಡಿ.",
+                dashboard_total_records: "ಒಟ್ಟು ದಾಖಲೆಗಳು",
+                dashboard_top_diseases: "ಟಾಪ್ ರೋಗಗಳು",
+                dashboard_top_symptoms: "ಟಾಪ್ ಲಕ್ಷಣಗಳು",
+                dashboard_top_rated: "ಟಾಪ್ ರೇಟೆಡ್ ವೈದ್ಯರು",
+                dashboard_back_home: "ಮನೆಗೆ ಹಿಂತಿರುಗಿ",
+                dashboard_search_by_condition: "ಸ್ಥಿತಿಯ ಮೇರೆಗೆ ಹುಡುಕಿ",
+                part_heart: "ಹೃದಯ",
+                part_liver: "ಕಲ್ಬಿ",
+                part_lungs: "ಶ್ವಾಸಕೋಶಗಳು",
+                part_brain: "ಮಧುಕುಟು / ನ್ಯೂರೋ",
+                part_kidney: "ಮೂತ್ರಾಶಯ",
+                part_eye: "ಕಣ್ಣು",
+                part_bones: "ಎಲುಬುಗಳು",
+                part_ent: "ಕಿವಿ ಮೂಕಿ ಗಂಟಲಿನ বিভাগ",
+                part_skin_hair: "ಚರ್ಮ & ಕೂದಲು",
+                part_teeth: "ಹಲ್ಲುಗಳು",
+                part_general: "ಸಾಮಾನ್ಯ",
+            }
+        };
+
+        function t(key, data={}) {
+            const lang = document.documentElement.lang || 'en';
+            let text = TRANSLATIONS[lang][key] || TRANSLATIONS.en[key] || '';
+            Object.keys(data).forEach(param => {
+                text = text.replace(`{${param}}`, data[param]);
+            });
+            return text;
+        }
+
+        function applyLanguage(lang) {
+            if (!TRANSLATIONS[lang]) {
+                lang = 'en';
+            }
+            document.documentElement.lang = lang;
+            document.body.className = 'lang-' + lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.dataset.i18n;
+                const data = {};
+                if (el.dataset.i18nPart) {
+                    const partKey = el.dataset.i18nPart.replace(/-/g, '_');
+                    data.part = TRANSLATIONS[lang]['part_' + partKey] || TRANSLATIONS.en['part_' + partKey] || el.dataset.i18nPart;
+                }
+                if (el.dataset.i18nAge !== undefined) data.age = el.dataset.i18nAge;
+                if (el.dataset.i18nFees !== undefined) data.fees = el.dataset.i18nFees;
+                if (el.dataset.i18nLocation !== undefined) data.location = el.dataset.i18nLocation;
+                const translated = t(key, data);
+                el.textContent = translated;
+                if (el.dataset.i18nPlaceholder) {
+                    el.placeholder = t(el.dataset.i18nPlaceholder, data);
+                }
+                if (el.dataset.i18nTitle) {
+                    el.title = t(el.dataset.i18nTitle, data);
+                }
+                if (el.dataset.i18nValue) {
+                    el.value = t(el.dataset.i18nValue, data);
+                }
+            });
+            document.querySelectorAll('[data-part-key]').forEach(el => {
+                const partKey = el.dataset.partKey.replace(/-/g, '_');
+                const label = TRANSLATIONS[lang]['part_' + partKey] || TRANSLATIONS.en['part_' + partKey] || partKey;
+                const labelNode = el.querySelector('.part-label');
+                if (labelNode) {
+                    labelNode.textContent = label;
+                } else {
+                    el.textContent = label;
+                }
+            });
+            document.querySelectorAll('option[data-i18n]').forEach(option => {
+                option.textContent = t(option.dataset.i18n);
+            });
+            document.title = t('page_title') || document.title;
+        }
+
+        function setLanguageCookie(lang) {
+            document.cookie = `selected_language=${lang}; path=/; max-age=31536000; samesite=lax`;
+        }
+
+        function getLanguageCookie() {
+            const match = document.cookie.match(/(?:^|; )selected_language=([^;]+)/);
+            return match ? decodeURIComponent(match[1]) : '';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const select = document.getElementById('language-select');
+            const saved = localStorage.getItem('selectedLanguage') || getLanguageCookie() || 'en';
+            applyLanguage(saved);
+            setLanguageCookie(saved);
+            if (!select) {
+                return;
+            }
+            select.value = saved;
+            select.addEventListener('change', () => {
+                localStorage.setItem('selectedLanguage', select.value);
+                setLanguageCookie(select.value);
+                applyLanguage(select.value);
+                document.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: select.value } }));
+            });
+        });
+    </script>
+</body>
+</html>

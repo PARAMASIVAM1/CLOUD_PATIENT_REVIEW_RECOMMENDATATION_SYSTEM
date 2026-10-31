@@ -1,0 +1,26 @@
+doctor_id,doctor_name,specialization,department,experience_years,qualification,consultation_fee,location,body_part,average_rating,feedback_text,sentiment_label,complaint_category
+1,Dr. Anitha,Opthalmology,Eyes,12,MBBS,900,Chennai,Eyes,4.8,"The eye doctor explained the procedure clearly and the clinic staff were very attentive.",Positive,Doctor Behaviour
+2,Dr. Vijay,ENT,Nose,9,MS,850,Chennai,Nose,4.6,"I was able to breathe easily after the first visit, though the waiting time was a bit long.",Positive,Waiting Time
+3,Dr. Priya,Dentistry,Teeth,10,BDS,1200,Coimbatore,Teeth,4.5,"The dentist was gentle and explained the cost before treatment, which made me comfortable.",Positive,Fees
+4,Dr. Ravi,Orthopedics,Bones,15,MS,1400,Chennai,Bones,4.9,"Bone pain reduced quickly after the surgery, and the follow-up care was excellent.",Positive,Treatment Quality
+5,Dr. Meena,Dermatology,Skin,8,MD,1100,Coimbatore,Skin,4.2,"The skin treatment helped reduce itching, but the medication was expensive.",Neutral,Fees
+6,Dr. Kumar,Cardiology,Heart,18,MD,1600,Chennai,Heart,4.7,"The doctor reviewed my heart reports carefully and suggested a clear treatment plan.",Positive,Doctor Behaviour
+7,Dr. Renu,Opthalmology,Eyes,7,MBBS,950,Trichy,Eyes,4.1,"The vision test was accurate, but the appointment schedule was delayed by 30 minutes.",Neutral,Waiting Time
+8,Dr. Arjun,ENT,Nose,11,MS,780,Madurai,Nose,4.4,"Nose pain settled after nasal cleaning and the doctor gave good home-care advice.",Positive,Treatment Quality
+9,Dr. Sangeetha,Dentistry,Teeth,13,BDS,1300,Salem,Teeth,4.3,"The root canal treatment was delivered well, though I expected a little better pain control.",Neutral,Doctor Behaviour
+10,Dr. Hari,Orthopedics,Bones,20,MS,1500,Coimbatore,Bones,4.6,"The doctor recommended a strong rehabilitation plan and the hospital facilities were clean.",Positive,Facility
+11,Dr. Kavya,Dermatology,Skin,6,MD,1000,Chennai,Skin,4.0,"Skin allergy cleared after medicine, but I had to wait for the results for several days.",Neutral,Waiting Time
+12,Dr. Sanjay,Cardiology,Heart,14,MD,1700,Madurai,Heart,4.5,"The consultation covered all my symptoms and the doctor made me feel confident in the treatment.",Positive,Doctor Behaviour
+13,Dr. Amrita,Opthalmology,Eyes,9,MBBS,920,Salem,Eyes,4.2,"The lens prescription was accurate and the staff were kind, but the parking was difficult.",Positive,Facility
+14,Dr. Naveen,ENT,Nose,5,MS,800,Chennai,Nose,4.0,"The nasal spray helped, but I felt the consultation was rushed.",Neutral,Doctor Behaviour
+15,Dr. Suresh,Dentistry,Teeth,16,BDS,1250,Trichy,Teeth,4.7,"Dental cleaning was smooth, and the entire procedure felt safe and controlled.",Positive,Facility
+16,Dr. Latha,Orthopedics,Bones,13,MS,1450,Chennai,Bones,4.4,"The fracture healed well, though the cast removal date was delayed.",Neutral,Waiting Time
+17,Dr. Preethi,Dermatology,Skin,10,MD,1050,Salem,Skin,4.3,"The skin consultation was helpful, but the medicine cost was higher than expected.",Neutral,Fees
+18,Dr. Karthik,Cardiology,Heart,17,MD,1650,Coimbatore,Heart,4.8,"The heart check-up was thorough and the doctor reviewed all test reports in detail.",Positive,Doctor Behaviour
+19,Dr. Nisha,Opthalmology,Eyes,8,MBBS,880,Madurai,Eyes,4.1,"My dry eye symptoms improved after treatment, though the follow-up appointment was hard to schedule.",Positive,Access
+20,Dr. Ajay,ENT,Nose,12,MS,820,Coimbatore,Nose,4.2,"The doctor advised clear home care for sinus pain and the clinic was clean.",Positive,Facility
+21,Dr. Tanuja,Dentistry,Teeth,11,BDS,1180,Chennai,Teeth,4.5,"The tooth extraction was quick and the aftercare advice was very useful.",Positive,Doctor Behaviour
+22,Dr. Gopal,Orthopedics,Bones,19,MS,1550,Madurai,Bones,4.7,"The pain management after surgery was excellent, and staff monitored me closely.",Positive,Facility
+23,Dr. Shalini,Dermatology,Skin,7,MD,980,Chennai,Skin,4.1,"The skin specialist identified my allergy correctly and suggested an easy routine.",Positive,Treatment Quality
+24,Dr. Raghav,Cardiology,Heart,16,MD,1680,Salem,Heart,4.6,"The doctor explained the heart condition clearly and scheduled regular follow-ups.",Positive,Doctor Behaviour
+25,Dr. Nandini,Opthalmology,Eyes,10,MBBS,940,Coimbatore,Eyes,4.3,"The cataract discussion was detailed and the staff assisted with insurance paperwork.",Positive,Facility

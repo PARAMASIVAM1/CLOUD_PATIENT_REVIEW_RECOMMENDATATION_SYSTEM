@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+    <a href="/form/{{ part_key or 'heart' }}" class="button secondary" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 0.88rem; font-weight: 600;">
+        &larr; Modify Search Filters ({{ part }})
+    </a>
+    <a href="/home" style="color: #0284c7; font-size: 0.88rem; text-decoration: underline; font-weight: 600;">
+        Choose Another Body Part &rarr;
+    </a>
+</div>
+
+<section class="page-intro">
+    <p class="eyebrow" data-i18n="results_title" data-i18n-part="{{ part_key }}">{{ part }} Specialist Recommendations</p>
+    <h1 data-i18n="results_title" data-i18n-part="{{ part_key }}">Personalized doctor recommendations</h1>
+    <p data-i18n="results_search_details" data-i18n-age="{{ query.age }}" data-i18n-fees="{{ query.fees }}" data-i18n-location="{{ query.location }}">Search details: Age {{ query.age }}, Fees up to {{ query.fees }}, Location {{ query.location }}</p>
+</section>
+
+<section class="search-summary">
+    <p><strong data-i18n="results_disease_label">Disease:</strong> {{ query.disease or 'Any' }}</p>
+    <p><strong data-i18n="results_symptom_label">Symptom:</strong> {{ query.symptom or 'Any' }}</p>
+    <p><strong data-i18n="results_count_label">Doctors Found:</strong> <span class="badge" style="background:#0d9488; color:#ffffff; font-weight:700;">{{ results|length }} Doctors Available</span></p>
+    {% if fee_range %}
+    <p><strong data-i18n="results_fee_range">Fee Range:</strong> ₹{{ fee_range.min }} - ₹{{ fee_range.max }}</p>
+    {% endif %}
+</section>
+
+{% if results %}
+<section class="card" style="margin-bottom: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">📍 Hospital Locations Map</h2>
+            <p class="muted" style="margin: 4px 0 0 0; font-size: 0.9rem;">Interactive map showing the exact hospital locations for all recommended doctors</p>
+        </div>
+        <span class="badge" style="background:#0d9488; color:#fff; font-weight:700;">{{ results|length }} Hospitals Mapped</span>
+    </div>
+    <div id="results-map" class="map-box" style="height: 380px; width: 100%; border-radius: 12px; border: 1px solid #cbd5e1; z-index: 1;"></div>
+</section>
+
+<section class="results-grid">
+    {% for item in results %}
+    <article class="doctor-card">
+        <div class="doctor-card__meta">
+            <h2>{{ item.doctor_name }}</h2>
+            <p>{{ item.specialization }}{% if item.department %} • {{ item.department }}{% endif %}</p>
+        </div>
+
+        <div class="badge-list">
+            <span class="badge"><strong data-i18n="results_fee">Fee:</strong> ₹{{ item.consultation_fee }}</span>
+            <span class="badge"><strong data-i18n="results_location">Location:</strong> {{ item.location }}</span>
+            <span class="badge"><strong data-i18n="results_hospital_name">Hospital Name:</strong> {{ item.hospital }}</span>
+            {% if item.get('average_rating') is not none %}
+            <span class="badge"><strong data-i18n="results_average_rating">Rating:</strong> {{ item.get('average_rating') }} / 5</span>
+            {% endif %}
+            <span class="badge"><strong data-i18n="results_sentiment">Sentiment:</strong> {{ item.sentiment_label }}</span>
+            <span class="badge"><strong data-i18n="results_review_category">Review Category:</strong> {{ query.disease or item.complaint_category or 'General' }}</span>
+            {% if item.experience_years %}
+            <span class="badge"><strong data-i18n="results_experience_years">Experience:</strong> {{ item.experience_years }} years</span>
+            {% endif %}
+        </div>
+
+        <div class="info-panel">
+            <p><strong data-i18n="results_specialization">Specialization:</strong> {{ item.specialization }}</p>
+            <p><strong data-i18n="results_department">Department:</strong> {{ item.department }}</p>
+            <p><strong data-i18n="results_hospital_name">Hospital Name:</strong> {{ item.hospital }}</p>
+            {% if item.experience_years %}
+            <p><strong data-i18n="results_experience_years">Experience:</strong> {{ item.experience_years }} years</p>
+            {% endif %}
+            <p><strong data-i18n="results_feedback_sample">Feedback sample:</strong> {{ item.feedback_text }}</p>
+            <p><strong data-i18n="results_recommendation_score">Recommendation Score:</strong> {{ item.recommendation_score }}</p>
+        </div>
+
+        <div class="actions">
+            <a class="button" href="/doctor/{{ item.doctor_id }}?disease={{ (disease or item.department)|urlencode }}&symptoms={{ (symptom or item.symptom_text)|urlencode }}" data-i18n="results_view_doctor_profile">View Doctor Profile</a>
+            <a class="button secondary" href="/map?location={{ item.location }}&hospital={{ item.hospital|urlencode }}&id={{ item.doctor_id }}&doctor={{ item.doctor_name|urlencode }}" title="View hospital in {{ item.location }} on map">📍 View on Map</a>
+            <a class="button secondary" href="https://www.google.com/maps/search/?api=1&query={{ (item.hospital ~ ' ' ~ item.location)|urlencode }}" target="_blank" rel="noopener noreferrer" title="Get GPS directions">🧭 Directions</a>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+{% else %}
+<section class="empty-state">
+    <h2>No matching doctors found</h2>
+    <p data-i18n="results_no_matching">No matching doctors were found. Try changing the fee or location filters.</p>
+    {% if location_part_fee_range %}
+    <p><strong data-i18n="results_available_fee_range">Available fee range in this location:</strong> ₹{{ location_part_fee_range.min }} - ₹{{ location_part_fee_range.max }}</p>
+    {% else %}
+    <p><strong data-i18n="results_no_fee_range">No doctors available for this part in the selected location.</strong></p>
+    {% endif %}
+    <div class="actions">
+        <a class="button" href="/home" data-i18n="results_back_home">Back to Home</a>
+        <a class="button secondary" href="/query" data-i18n="results_ask_medical_query">Ask a Medical Query</a>
+    </div>
+</section>
+{% endif %}
+
+{% if results %}
+<div class="actions">
+    <a class="button secondary" href="/home" data-i18n="results_back_home">Back to Home</a>
+</div>
+{% endif %}
+
+<!-- Language Translation System -->
+<script>
+    // Translation keys mapping for results page
+    const translationKeys = {
+        'results_title': 'Personalized doctor recommendations',
+        'results_disease_label': 'Disease:',
+        'results_symptom_label': 'Symptom:',
+        'results_fee_range': 'Fee Range:',
+        'results_fee': 'Fee:',
+        'results_location': 'Location:',
+        'results_hospital_name': 'Hospital Name:',
+        'results_experience_years': 'Experience:',
+        'results_average_rating': 'Rating:',
+        'results_sentiment': 'Sentiment:',
+        'results_review_category': 'Review Category:',
+        'results_specialization': 'Specialization:',
+        'results_department': 'Department:',
+        'results_feedback_sample': 'Feedback sample:',
+        'results_recommendation_score': 'Recommendation Score:',
+        'results_view_doctor_profile': 'View Doctor Profile',
+        'results_ask_medical_query': 'Ask a Medical Query',
+        'results_back_home': 'Back to Home',
+        'results_no_matching': 'No matching doctors were found. Try changing the fee or location filters.',
+        'results_available_fee_range': 'Available fee range in this location:',
+        'results_no_fee_range': 'No doctors available for this part in the selected location.'
+    };
+
+    // Initialize language selector
+    document.addEventListener('DOMContentLoaded', function() {
+        const languageSelector = document.getElementById('language-selector-results') || document.getElementById('language-select');
+        const savedLang = localStorage.getItem('selectedLanguage') || 'en';
+        if (languageSelector) {
+            languageSelector.value = savedLang;
+        }
+        
+        // Fetch translations
+        fetch('/api/translations')
+            .then(response => response.json())
+            .then(translations => {
+                function applyTranslations(lang) {
+                    if (lang === 'en') return; // English is default
+                    
+                    const langTranslations = translations[lang];
+                    if (!langTranslations) return;
+                    
+                    // Translate all elements with data-i18n attribute
+                    document.querySelectorAll('[data-i18n]').forEach(element => {
+                        const key = element.getAttribute('data-i18n');
+                        if (langTranslations[key]) {
+                            if (element.tagName === 'STRONG' || element.tagName === 'SPAN' || element.tagName === 'P') {
+                                element.textContent = langTranslations[key];
+                            } else if (element.tagName === 'A' || element.tagName === 'BUTTON') {
+                                element.textContent = langTranslations[key];
+                            } else {
+                                element.textContent = langTranslations[key];
+                            }
+                        }
+                    });
+                }
+                
+                // Apply initial language
+                applyTranslations(savedLang);
+                
+                // Handle language change
+                if (languageSelector) {
+                    languageSelector.addEventListener('change', function() {
+                        const newLang = this.value;
+                        localStorage.setItem('selectedLanguage', newLang);
+                        applyTranslations(newLang);
+                    });
+                }
+            })
+            .catch(error => console.log('Translation loading skipped'));
+    });
+</script>
+
+{% if results %}
+<link rel="stylesheet" href="{{ url_for('static', filename='leaflet.css') }}"/>
+<script src="{{ url_for('static', filename='leaflet.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var resultsMapEl = document.getElementById('results-map');
+        if (!resultsMapEl) return;
+
+        // Configure local marker icons
+        delete L.Icon.Default.prototype._getIconUrl;
+        L.Icon.Default.mergeOptions({
+            iconRetinaUrl: "{{ url_for('static', filename='images/marker-icon-2x.png') }}",
+            iconUrl: "{{ url_for('static', filename='images/marker-icon.png') }}",
+            shadowUrl: "{{ url_for('static', filename='images/marker-shadow.png') }}"
+        });
+
+        var resultsMap = L.map('results-map').setView([11.0, 78.7], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(resultsMap);
+        setTimeout(function() { resultsMap.invalidateSize(); }, 200);
+
+        var markers = [];
+        var doctorsList = {{ (map_doctors or []) | tojson | safe }};
+        if (doctorsList && doctorsList.length) {
+            doctorsList.forEach(function(item) {
+                if (item.lat && item.lon) {
+                    var marker = L.marker([item.lat, item.lon]).addTo(resultsMap);
+                    var popupHtml = '<div style="min-width: 200px; font-family: inherit; line-height: 1.4;">'
+                        + '<strong style="color: #0d9488; font-size: 1.05rem;">🏥 ' + (item.hospital || 'Hospital') + '</strong><br>'
+                        + '<strong>👨‍⚕️ ' + item.doctor_name + '</strong><br>'
+                        + '<span style="color: #64748b; font-size: 0.85rem;">' + item.specialization + '</span><br>'
+                        + '<span>📍 <strong>' + item.location + '</strong> • Fee: ₹' + item.consultation_fee + '</span><br>'
+                        + '<div style="margin-top: 10px; display: flex; gap: 8px;">'
+                        + '<a href="/doctor/' + item.doctor_id + '" style="background:#0d9488;color:#fff;padding:5px 10px;border-radius:4px;text-decoration:none;font-size:0.8rem;font-weight:600;">Profile</a> '
+                        + '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((item.hospital || '') + ' ' + (item.location || '')) + '" target="_blank" rel="noopener" style="background:#0284c7;color:#fff;padding:5px 10px;border-radius:4px;text-decoration:none;font-size:0.8rem;font-weight:600;">Directions</a>'
+                        + '</div></div>';
+                    marker.bindPopup(popupHtml);
+                    markers.push(marker);
+                }
+            });
+            if (markers.length) {
+                var group = new L.featureGroup(markers);
+                resultsMap.fitBounds(group.getBounds().pad(0.2));
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

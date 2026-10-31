@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="profile-hero">
+    <div>
+        <span class="eyebrow">Patient Experience</span>
+        <h1>My Feedback & Reviews</h1>
+        <p class="muted">All post-treatment feedback submitted under {{ patient_email }}.</p>
+    </div>
+    <div class="actions">
+        <a href="/patient/dashboard" class="button secondary">&larr; Patient Dashboard</a>
+    </div>
+</section>
+
+<section class="card" style="margin-top: 24px;">
+    {% if feedback %}
+    <div style="display: grid; gap: 16px;">
+        {% for item in feedback %}
+        <div style="background: rgba(20, 35, 60, 0.45); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 18px 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong style="color: #ffffff; font-size: 1.05rem;">Dr. {{ item.doctor_name }}</strong>
+                <span style="color: #facc15; font-weight: 700;">★ {{ item.patient_rating or '5' }} / 5</span>
+            </div>
+            <p style="color: #e2e8f0; font-size: 0.95rem; margin: 8px 0; line-height: 1.5;">"{{ item.new_feedback }}"</p>
+            <div style="font-size: 0.8rem; color: #94a3b8; display: flex; gap: 12px; align-items: center;">
+                <span>Sentiment: <strong style="color: #38bdf8;">{{ item.sentiment_label or 'Positive' }}</strong></span>
+                <span>Submitted: {{ item.submitted_at }}</span>
+            </div>
+            {% if item.doctor_response %}
+            <div style="margin-top: 12px; padding: 10px 14px; background: rgba(14, 165, 233, 0.1); border-left: 3px solid #38bdf8; border-radius: 6px; font-size: 0.88rem; color: #bae6fd;">
+                <strong>Doctor's Reply:</strong> {{ item.doctor_response }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px 20px; color: #94a3b8;">
+        <p>You have not submitted any reviews yet.</p>
+        <a href="/patient/dashboard" class="button" style="margin-top: 10px;">Return to Dashboard</a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
+

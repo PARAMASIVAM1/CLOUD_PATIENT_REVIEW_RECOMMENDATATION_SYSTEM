@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: healthcare-ai-portal
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python init_cloud_db.py"
+    startCommand: "gunicorn app:app --workers 2 --timeout 120"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: HEALTHCARE_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: healthcare-db
+          property: connectionString
+
+databases:
+  - name: healthcare-db
+    databaseName: healthcare_db
+    user: healthcare_user
+    plan: free
+

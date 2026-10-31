@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="profile-hero" style="margin-bottom: 24px;">
+    <div>
+        <p class="eyebrow">Alerts & Updates</p>
+        <h1>Notifications Center</h1>
+        <p>Real-time updates regarding appointment confirmations, clinical notes, and system alerts.</p>
+    </div>
+    {% if unread_count > 0 %}
+    <div>
+        <form method="POST" action="/notifications/mark-read">
+            <button type="submit" class="button secondary">✓ Mark All as Read</button>
+        </form>
+    </div>
+    {% endif %}
+</section>
+
+<div class="form-panel" style="padding: 24px;">
+    {% if request.args.get('success') %}
+    <div style="background: rgba(34, 197, 94, 0.15); border: 1px solid #22c55e; color: #166534; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-weight: 600;">
+        ✓ {{ request.args.get('success') }}
+    </div>
+    {% endif %}
+    {% if request.args.get('error') %}
+    <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #991b1b; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-weight: 600;">
+        ⚠️ {{ request.args.get('error') }}
+    </div>
+    {% endif %}
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <h2 style="margin: 0; font-size: 1.25rem;">Recent Notifications ({{ notifications|length }})</h2>
+            {% if unread_count > 0 %}
+            <span style="background: #ef4444; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 700;">
+                {{ unread_count }} New
+            </span>
+            {% endif %}
+        </div>
+
+        {% if notifications %}
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #475569; cursor: pointer; user-select: none; background: #f1f5f9; padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 600;">
+                <input type="checkbox" id="selectAllNotifs" onchange="toggleSelectAllNotifs(this)" style="cursor: pointer; accent-color: #0284c7; width: 15px; height: 15px;">
+                <span id="selectAllNotifsLabel">Select All</span>
+            </label>
+            <button type="submit" form="bulkDeleteNotifForm" name="action" value="selected" id="deleteSelectedNotifBtn" onclick="return confirmDeleteSelectedNotifs();" style="display: none; padding: 5px 12px; font-size: 0.82rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; align-items: center; gap: 6px;">
+                🗑️ Delete Selected (<span id="selectedNotifCount">0</span>)
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if notifications %}
+    <form id="bulkDeleteNotifForm" method="POST" action="/notifications/bulk-delete">
+        <div style="display: grid; gap: 12px;">
+            {% for n in notifications %}
+            <div style="background: {{ '#ffffff' if n.is_read else '#f0fdf4' }}; border: 1px solid {{ '#e2e8f0' if n.is_read else '#86efac' }}; border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div style="display: flex; gap: 14px; align-items: flex-start; flex: 1;">
+                    <input type="checkbox" name="notif_ids" value="{{ n.id }}" class="notif-checkbox" onchange="updateSelectedNotifCount()" style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444; margin-top: 4px; flex-shrink: 0;" title="Select this notification">
+                    <span style="font-size: 1.5rem; line-height: 1.2;">
+                        {% if 'Approved' in n.title %}✅
+                        {% elif 'Completed' in n.title %}🎉
+                        {% elif 'Declined' in n.title or 'Rejected' in n.title %}❌
+                        {% else %}🔔
+                        {% endif %}
+                    </span>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <strong style="color: #0f172a; font-size: 1rem;">{{ n.title }}</strong>
+                            {% if not n.is_read %}
+                            <span style="background: #22c55e; color: white; padding: 1px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">NEW</span>
+                            {% endif %}
+                        </div>
+                        <p style="margin: 0; color: #475569; font-size: 0.92rem;">{{ n.message }}</p>
+                        <span class="muted" style="font-size: 0.8rem; margin-top: 6px; display: inline-block;">
+                            {{ n.created_at.strftime('%d-%b-%Y at %I:%M %p') if n.created_at else 'Recently' }}
+                        </span>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                    {% if n.reference_id %}
+                    <a href="/appointment/{{ n.reference_id }}/letter" class="button secondary" style="padding: 6px 14px; font-size: 0.85rem;" target="_blank">
+                        View Letter
+                    </a>
+                    {% endif %}
+                    <button type="submit" form="singleDeleteNotif_{{ n.id }}" class="button" style="padding: 6px 12px; font-size: 0.85rem; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; font-weight: 700;" title="Delete this notification">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </form>
+
+    <!-- Standalone forms for individual notification deletion -->
+    {% for n in notifications %}
+    <form id="singleDeleteNotif_{{ n.id }}" method="POST" action="/notification/{{ n.id }}/delete" onsubmit="return confirm('Delete this notification?');" style="display: none;"></form>
+    {% endfor %}
+
+    <script>
+    function toggleSelectAllNotifs(master) {
+        const checkboxes = document.querySelectorAll('.notif-checkbox');
+        checkboxes.forEach(cb => cb.checked = master.checked);
+        const label = document.getElementById('selectAllNotifsLabel');
+        if (label) label.textContent = master.checked ? 'Deselect All' : 'Select All';
+        updateSelectedNotifCount();
+    }
+
+    function updateSelectedNotifCount() {
+        const checked = document.querySelectorAll('.notif-checkbox:checked');
+        const total = document.querySelectorAll('.notif-checkbox');
+        const btn = document.getElementById('deleteSelectedNotifBtn');
+        const countSpan = document.getElementById('selectedNotifCount');
+        const master = document.getElementById('selectAllNotifs');
+
+        if (countSpan) countSpan.textContent = checked.length;
+        if (btn) btn.style.display = checked.length > 0 ? 'inline-flex' : 'none';
+        if (master) {
+            master.checked = (checked.length > 0 && checked.length === total.length);
+            const label = document.getElementById('selectAllNotifsLabel');
+            if (label) label.textContent = master.checked ? 'Deselect All' : 'Select All';
+        }
+    }
+
+    function confirmDeleteSelectedNotifs() {
+        const count = document.querySelectorAll('.notif-checkbox:checked').length;
+        if (count === 0) {
+            alert('Please select at least one notification to delete.');
+            return false;
+        }
+        return confirm(`Are you sure you want to delete ${count} selected notification(s)?`);
+    }
+    </script>
+    {% else %}
+    <div style="text-align: center; padding: 40px 20px; color: #64748b;">
+        <div style="font-size: 2.2rem; margin-bottom: 8px;">📭</div>
+        <h3 style="color: #1e293b; margin-bottom: 6px;">You are all caught up!</h3>
+        <p>No new notifications at this time.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

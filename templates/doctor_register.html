@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="profile-hero" style="margin-bottom: 24px;">
+    <div>
+        <p class="eyebrow">Medical Practitioners</p>
+        <h1>Doctor Registration & Onboarding</h1>
+        <p>Join the statewide healthcare network. Manage patient appointments and review sentiment analytics.</p>
+    </div>
+    <div>
+        <a href="/login" class="button secondary">Already registered? Log in</a>
+    </div>
+</section>
+
+<div class="form-panel" style="max-width: 720px; margin: 0 auto; padding: 30px;">
+    {% if error %}
+    <div class="search-summary" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.15); margin-bottom: 20px;">
+        <p>⚠️ {{ error }}</p>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/doctor/register">
+        <h3 style="margin-top: 0; color: #0284c7; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">1. Professional Credentials</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="form-group">
+                <label>Full Name (Dr.)</label>
+                <input type="text" name="doctor_name" placeholder="Dr. First Last" required>
+            </div>
+            <div class="form-group">
+                <label>Qualifications</label>
+                <input type="text" name="qualifications" placeholder="e.g. MBBS, MD (Cardio)" required>
+            </div>
+            <div class="form-group">
+                <label>Specialization</label>
+                <input type="text" name="specialization" placeholder="e.g. Cardiologist" required>
+            </div>
+            <div class="form-group">
+                <label>Department / Clinical Focus</label>
+                <input type="text" name="department" placeholder="e.g. Cardiology" required>
+            </div>
+        </div>
+
+        <h3 style="color: #0284c7; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">2. Hospital & Practice Details</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="form-group">
+                <label>Affiliated Hospital</label>
+                <input type="text" name="hospital" placeholder="Hospital Name" required>
+            </div>
+            <div class="form-group">
+                <label>Practice District (Tamil Nadu)</label>
+                <input type="text" name="location" placeholder="e.g. Chennai, Coimbatore" required>
+            </div>
+            <div class="form-group">
+                <label>Experience (Years)</label>
+                <input type="number" name="experience_years" value="5" min="1" max="50" required>
+            </div>
+            <div class="form-group">
+                <label>Consultation Fee (₹)</label>
+                <input type="number" name="consultation_fee" value="500" min="0" step="50" required>
+            </div>
+        </div>
+
+        <h3 style="color: #0284c7; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">3. Login Account Credentials</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div class="form-group">
+                <label>Official Email Address</label>
+                <input type="email" name="email" placeholder="doctor@hospital.com" required>
+            </div>
+            <div class="form-group">
+                <label>Account Password</label>
+                <input type="password" name="password" placeholder="At least 6 characters" required>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label>Professional Bio / Summary</label>
+            <textarea name="bio" rows="3" placeholder="Brief statement about your clinical experience and practice focus..."></textarea>
+        </div>
+
+        <div class="actions">
+            <button type="submit" class="button" style="width: 100%; padding: 12px; font-size: 1rem;">
+                👨‍⚕️ Complete Doctor Registration
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

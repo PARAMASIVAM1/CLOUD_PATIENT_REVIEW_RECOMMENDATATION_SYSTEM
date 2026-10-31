@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="profile-hero" style="margin-bottom: 24px;">
+    <div>
+        <p class="eyebrow">Patient Portal</p>
+        <h1>My Consultations & Appointments</h1>
+        <p>Track your scheduled visits, access official appointment slips, and share post-treatment feedback.</p>
+    </div>
+    <div>
+        <a href="/home" class="button secondary">🔍 Find More Doctors</a>
+    </div>
+</section>
+
+{% if message %}
+<div class="search-summary" style="border-color: #16a085; background: rgba(22, 160, 133, 0.15); margin-bottom: 20px;">
+    <p>{{ message }}</p>
+</div>
+{% endif %}
+
+<div class="form-panel" style="padding: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h2 style="margin: 0; font-size: 1.3rem;">📋 Appointment Records ({{ appointments|length }})</h2>
+            <span class="muted" style="font-size: 0.9rem;">Real-time hospital sync</span>
+        </div>
+        {% if appointments %}
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #475569; cursor: pointer; user-select: none; background: #f1f5f9; padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                <input type="checkbox" id="selectAllMyApts" onchange="toggleSelectAllMy(this)" style="cursor: pointer; accent-color: #0284c7; width: 15px; height: 15px;">
+                <span id="selectAllMyLabel">Select All</span>
+            </label>
+            <button type="submit" form="bulkDeleteMyForm" name="action" value="selected" id="deleteSelectedMyBtn" onclick="return confirmDeleteSelectedMy();" style="display: none; padding: 5px 12px; font-size: 0.82rem; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700;">
+                🗑️ Delete Selected (<span id="selectedMyCount">0</span>)
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if appointments %}
+    <form id="bulkDeleteMyForm" method="POST" action="/appointments/bulk-delete">
+        <div style="display: grid; gap: 16px;">
+            {% for apt in appointments %}
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display: flex; align-items: flex-start; gap: 14px; flex: 1; min-width: 260px;">
+                    <input type="checkbox" name="appointment_ids" value="{{ apt.id }}" class="apt-my-checkbox" onchange="updateSelectedMyCount()" style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444; margin-top: 4px; flex-shrink: 0;" title="Select this appointment">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                            <span style="font-family: monospace; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 3px 8px; border-radius: 6px; font-size: 0.85rem;">
+                                {{ apt.appointment_ref }}
+                            </span>
+                            <strong style="font-size: 1.15rem; color: #0f172a;">{{ apt.doctor_name }}</strong>
+                            <span class="muted" style="font-size: 0.9rem;">({{ apt.specialization }})</span>
+                        </div>
+                <div style="font-size: 0.84rem; color: #0284c7; margin-bottom: 5px;">
+                    🩺 <strong>Doctor Login ID:</strong> <code style="background: #e0f2fe; padding: 2px 6px; border-radius: 4px; color: #0369a1; font-weight: 600;">{{ apt.doctor_email or (apt.doctor_name) }}</code> (Pass: <code>doctor123</code>)
+                </div>
+                <div style="font-size: 0.92rem; color: #475569; margin-bottom: 4px;">
+                    🏥 <strong>{{ apt.hospital }}</strong>
+                </div>
+                <div style="font-size: 0.9rem; color: #64748b; display: gap: 16px; flex-wrap: wrap;">
+                    <span>📅 Date: <strong>{{ apt.appointment_date }}</strong></span> &nbsp;|&nbsp;
+                    <span>⏰ Slot: <strong>{{ apt.appointment_time }}</strong></span> &nbsp;|&nbsp;
+                    <span>🩺 Reason: <strong>{{ apt.disease or 'Consultation' }}</strong></span>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+                <div>
+                    {% if apt.status == 'Approved' %}
+                    <span style="background: #dcfce7; color: #166534; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid #bbf7d0;">
+                        ✅ Confirmed & Approved
+                    </span>
+                    {% elif apt.status == 'Pending' %}
+                    <span style="background: #fef3c7; color: #92400e; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid #fde68a;">
+                        ⏳ Awaiting Doctor Approval
+                    </span>
+                    {% elif apt.status == 'Completed' %}
+                    <span style="background: #e0f2fe; color: #075985; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid #bae6fd;">
+                        🎉 Treatment Completed
+                    </span>
+                    {% elif apt.status == 'Rejected' %}
+                    <span style="background: #fee2e2; color: #991b1b; padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; border: 1px solid #fecaca;">
+                        ❌ Declined
+                    </span>
+                    {% else %}
+                    <span style="background: #f1f5f9; color: #475569; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 0.85rem;">
+                        {{ apt.status }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a href="/appointment/{{ apt.id }}/letter" class="button secondary" style="padding: 6px 14px; font-size: 0.85rem;" target="_blank">
+                        📄 View Official Slip
+                    </a>
+                    <button type="submit" form="singleDeleteFormMy_{{ apt.id }}" class="button" style="padding: 6px 12px; font-size: 0.85rem; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700;" title="Delete this appointment">
+                        🗑️ Delete
+                    </button>
+                    {% if apt.status == 'Pending' %}
+                    <form method="POST" action="/test/switch-doctor" style="display: inline; margin: 0;">
+                        <input type="hidden" name="doctor_id" value="{{ apt.doctor_id }}">
+                        <input type="hidden" name="doctor_name" value="{{ apt.doctor_name }}">
+                        <input type="hidden" name="doctor_email" value="{{ apt.doctor_email }}">
+                        <button type="submit" class="button" style="padding: 6px 12px; font-size: 0.85rem; background: #16a34a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700;" title="Test Workflow: Switch session to this Doctor to approve appointment">
+                            👨‍⚕️ Test: Approve as Doctor
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% if apt.status == 'Completed' and not apt.has_feedback %}
+                    <a href="/appointment/{{ apt.id }}/feedback" class="button" style="padding: 6px 14px; font-size: 0.85rem; background: #10b981;">
+                        ⭐ Rate Treatment
+                    </a>
+                    {% elif apt.has_feedback %}
+                    <span style="color: #10b981; font-size: 0.85rem; font-weight: 600; padding: 6px 0;">✓ Feedback Submitted</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    </form>
+    {% for apt in appointments %}
+    <form id="singleDeleteFormMy_{{ apt.id }}" method="POST" action="/appointment/{{ apt.id }}/delete" onsubmit="return confirm('Are you sure you want to delete this appointment for {{ apt.doctor_name }}?');" style="display: none;"></form>
+    {% endfor %}
+    {% else %}
+    <div style="text-align: center; padding: 50px 20px; color: #64748b;">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">📅</div>
+        <h3 style="margin-bottom: 8px; color: #1e293b;">No appointments scheduled yet</h3>
+        <p style="margin-bottom: 20px;">Browse recommended doctors and book your consultation in seconds.</p>
+        <a href="/home" class="button">Find a Specialist Now</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleSelectAllMy(master) {
+    const checkboxes = document.querySelectorAll('.apt-my-checkbox');
+    checkboxes.forEach(cb => cb.checked = master.checked);
+    updateSelectedMyCount();
+}
+
+function updateSelectedMyCount() {
+    const checkboxes = document.querySelectorAll('.apt-my-checkbox');
+    const checked = document.querySelectorAll('.apt-my-checkbox:checked');
+    const btn = document.getElementById('deleteSelectedMyBtn');
+    const countSpan = document.getElementById('selectedMyCount');
+    const master = document.getElementById('selectAllMyApts');
+    const label = document.getElementById('selectAllMyLabel');
+    
+    if (countSpan) countSpan.innerText = checked.length;
+    if (btn) {
+        btn.style.display = checked.length > 0 ? 'inline-flex' : 'none';
+    }
+    if (master) {
+        master.checked = (checkboxes.length > 0 && checked.length === checkboxes.length);
+    }
+    if (label) {
+        label.innerText = master && master.checked ? 'Deselect All' : 'Select All';
+    }
+}
+
+function confirmDeleteSelectedMy() {
+    const checked = document.querySelectorAll('.apt-my-checkbox:checked');
+    if (checked.length === 0) {
+        alert('Please select at least one appointment to delete.');
+        return false;
+    }
+    return confirm(`Are you sure you want to delete the ${checked.length} selected appointment(s)?`);
+}
+</script>
+{% endblock %}
+

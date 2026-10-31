@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Cache & temporary files
+.git_corrupted_bak/
+data_cache.pkl
+*.log
+last_500_error.log
+.vscode/
+.idea/
+.sixth/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
