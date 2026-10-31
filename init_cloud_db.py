@@ -2,8 +2,8 @@
 init_cloud_db.py - Automated Database Setup & Migration for Render Cloud Deployment
 
 Can be run automatically in Render Start Command or manually from Render Web Shell.
-If the database is fresh, it imports the dataset and creates all necessary tables.
-If the database already has data, it safely ensures all schemas & admin accounts are ready.
+Guarantees all tables (appointments, patients, doctors, notifications) exist first,
+then imports initial datasets if needed.
 """
 
 import os
@@ -29,22 +29,29 @@ def run_migration_if_needed():
         print("[WARN] Database is not reachable right now. Skipping migration.")
         return False
 
+    # Step 1: ALWAYS ensure all foundational tables & schemas exist first (0.1s execution)
+    print("[INFO] Step 1: Ensuring all database schemas, tables, and credentials...")
+    try:
+        init_system_db.setup_all_schemas()
+        print("[SUCCESS] All schemas (appointments, patients, doctors, notifications) verified!")
+    except Exception as e:
+        print(f"[ERROR] Error configuring schemas: {e}")
+
+    # Step 2: Check if doctors dataset needs to be seeded
     con = None
     needs_data_import = False
     try:
         con = get_connection()
         cur = con.cursor()
-
-        # Check if doctors table exists and has rows
         try:
             cur.execute('SELECT COUNT(*) FROM "doctors";')
             cnt = cur.fetchone()[0]
             if cnt == 0:
                 needs_data_import = True
             else:
-                print(f"[INFO] Doctors table found with {cnt:,} records.")
+                print(f"[INFO] Doctors catalogue active with {cnt:,} records.")
         except Exception as e:
-            print(f"[INFO] Doctors table not present yet ({e}). Will run initial dataset migration.")
+            print(f"[INFO] Doctors check notice: {e}. Migration requested.")
             needs_data_import = True
         finally:
             try:
@@ -53,7 +60,6 @@ def run_migration_if_needed():
                 pass
     except Exception as exc:
         print(f"[WARN] Connection check notice: {exc}")
-        needs_data_import = True
     finally:
         if con:
             try:
@@ -62,25 +68,17 @@ def run_migration_if_needed():
                 pass
 
     if needs_data_import:
-        print("[INFO] Fresh cloud database detected. Migrating initial dataset...")
+        print("[INFO] Step 2: Fresh database detected. Importing initial doctor & hospital datasets...")
         try:
             import migrate_to_postgres
             migrate_to_postgres.run_all_migrations()
-            print("[INFO] Initial dataset migration completed successfully!")
+            print("[INFO] Dataset migration completed successfully!")
         except Exception as e:
             print(f"[WARN] Error during dataset migration: {e}")
     else:
-        print("[INFO] Database already contains doctor records. Preserving existing data.")
+        print("[INFO] Step 2: Database already contains doctors dataset. Preserving data.")
 
-    # Always ensure schemas and default admin account exist
-    print("[INFO] Ensuring all schemas, tables, and admin credentials...")
-    try:
-        init_system_db.setup_all_schemas()
-        print("[SUCCESS] Cloud database is fully initialized and ready for production!")
-        return True
-    except Exception as e:
-        print(f"[ERROR] Error configuring schemas: {e}")
-        return False
+    return True
 
 if __name__ == "__main__":
     success = run_migration_if_needed()

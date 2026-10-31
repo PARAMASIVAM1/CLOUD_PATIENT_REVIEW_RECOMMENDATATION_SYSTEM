@@ -178,7 +178,7 @@
         <!-- Header -->
         <div class="letter-header">
             <div>
-                <h1>{{ appointment.hospital }}</h1>
+                <h1>{{ appointment.hospital or 'Multi-Speciality Healthcare Hospital' }}</h1>
                 <p>Official Patient Consultation & Appointment Letter</p>
             </div>
             <div class="letter-ref-box">
@@ -203,11 +203,11 @@
                     📋 STATUS: {{ appointment.status }}
                     {% endif %}
                 </span>
-                <span style="font-size: 0.85rem; font-weight: normal;">Issued on: {{ appointment.created_at.strftime('%d-%b-%Y %I:%M %p') if appointment.created_at else 'Today' }}</span>
+                <span style="font-size: 0.85rem; font-weight: normal;">Issued on: {{ appointment.created_at_str or (appointment.created_at.strftime('%d-%b-%Y %I:%M %p') if appointment.created_at is not string and appointment.created_at else appointment.created_at) or 'Today' }}</span>
             </div>
 
             <!-- Doctor Testing Workflow Card -->
-            {% set clean_doc_title = appointment.doctor_name | replace('DR.', '') | replace('Dr.', '') | replace('dr.', '') | trim %}
+            {% set clean_doc_title = (appointment.doctor_name or 'Specialist') | replace('DR.', '') | replace('Dr.', '') | replace('dr.', '') | trim %}
             {% if appointment.status == 'Pending' %}
             <div class="test-helper-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px solid #86efac; border-radius: 12px; padding: 18px 22px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(22, 101, 52, 0.08);">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
@@ -218,11 +218,11 @@
                         <p style="margin: 0; font-size: 0.9rem; color: #166534; line-height: 1.6;">
                             This appointment request is awaiting doctor confirmation.
                             <br>
-                            <strong>Doctor Login:</strong> <code id="docLoginEmail" style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; color: #14532d;">{{ appointment.doctor_email or appointment.doctor_name }}</code>
+                            <strong>Doctor Login:</strong> <code id="docLoginEmail" style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; color: #14532d;">{{ appointment.doctor_email or appointment.doctor_name or 'doctor@hospital.com' }}</code>
                             &nbsp;|&nbsp;
                             <strong>Password:</strong> <code style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 6px; font-weight: 700; color: #14532d;">doctor123</code>
                             &nbsp;
-                            <button type="button" onclick="navigator.clipboard.writeText('{{ appointment.doctor_email or appointment.doctor_name }}'); this.innerText='✓ Copied!'; setTimeout(() => this.innerText='📋 Copy ID', 2000);" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 5px; background: #bbf7d0; border: 1px solid #86efac; color: #14532d; cursor: pointer; font-weight: 700;">📋 Copy ID</button>
+                            <button type="button" onclick="navigator.clipboard.writeText('{{ appointment.doctor_email or appointment.doctor_name or 'doctor@hospital.com' }}'); this.innerText='✓ Copied!'; setTimeout(() => this.innerText='📋 Copy ID', 2000);" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 5px; background: #bbf7d0; border: 1px solid #86efac; color: #14532d; cursor: pointer; font-weight: 700;">📋 Copy ID</button>
                         </p>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -246,7 +246,7 @@
                             ✅ Consultation Confirmed by Dr. {{ clean_doc_title }}
                         </h4>
                         <p style="margin: 0; font-size: 0.88rem; color: #166534;">
-                            Doctor Account: <code style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 5px; font-weight: 700; color: #14532d;">{{ appointment.doctor_email or appointment.doctor_name }}</code> &nbsp;|&nbsp; Password: <code style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 5px; font-weight: 700; color: #14532d;">doctor123</code>
+                            Doctor Account: <code style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 5px; font-weight: 700; color: #14532d;">{{ appointment.doctor_email or appointment.doctor_name or 'doctor@hospital.com' }}</code> &nbsp;|&nbsp; Password: <code style="background: #ffffff; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 5px; font-weight: 700; color: #14532d;">doctor123</code>
                         </p>
                     </div>
                     <form method="POST" action="/test/switch-doctor" style="margin: 0;">
@@ -366,7 +366,7 @@
             <div class="stamp-area">
                 <div class="hospital-seal">
                     AUTHENTICATED DOCUMENT<br>
-                    {{ appointment.hospital[:20] }}
+                    {{ (appointment.hospital or 'General Hospital')[:20] }}
                 </div>
                 <div class="signature-box">
                     <div class="signature-line"></div>

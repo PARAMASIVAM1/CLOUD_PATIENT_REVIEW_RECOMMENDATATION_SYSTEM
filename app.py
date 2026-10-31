@@ -3008,6 +3008,18 @@ def view_appointment_letter(apt_id):
     if not just_booked and curr_role != "admin" and curr_email != str(apt.get("patient_email", "")).lower() and curr_role != "doctor":
         return redirect(url_for("home"))
 
+    # Safely format created_at date string for Jinja template
+    c_at = apt.get("created_at")
+    if isinstance(c_at, (datetime, date)):
+        apt["created_at_str"] = c_at.strftime("%d-%b-%Y %I:%M %p")
+    elif c_at:
+        apt["created_at_str"] = str(c_at)[:19]
+    else:
+        apt["created_at_str"] = datetime.now().strftime("%d-%b-%Y %I:%M %p")
+
+    if not apt.get("hospital"):
+        apt["hospital"] = "General Multi-Speciality Hospital"
+
     return render_template("appointment_letter.html", appointment=apt)
 
 

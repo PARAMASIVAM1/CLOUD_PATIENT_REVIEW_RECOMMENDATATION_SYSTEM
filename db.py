@@ -528,66 +528,146 @@ def get_doctors_api_list(doctor_id=None, city=None, hospital=None, specializatio
 
 # ==================== APPOINTMENT MANAGEMENT ====================
 
+def _get_fallback_sqlite():
+    import sqlite3
+    db_path = WORKSPACE_DIR / "appointments_fallback.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS appointments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            appointment_ref TEXT UNIQUE,
+            patient_email TEXT,
+            patient_name TEXT,
+            patient_phone TEXT,
+            patient_age INTEGER,
+            patient_gender TEXT,
+            doctor_id INTEGER,
+            doctor_name TEXT,
+            doctor_email TEXT,
+            hospital TEXT,
+            specialization TEXT,
+            appointment_date TEXT,
+            appointment_time TEXT,
+            symptoms TEXT,
+            disease TEXT,
+            notes TEXT,
+            status TEXT DEFAULT 'Pending',
+            doctor_notes TEXT,
+            prescription TEXT,
+            has_feedback INTEGER DEFAULT 0,
+            created_at TEXT,
+            updated_at TEXT
+        );
+    """)
+    conn.commit()
+    return conn
+
+def _save_fallback_appointment(data, ref, apt_date, time_slot, patient_age, doc_id, doc_name, doc_email):
+    try:
+        from datetime import datetime
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn = _get_fallback_sqlite()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO appointments (
+                appointment_ref, patient_email, patient_name, patient_phone,
+                patient_age, patient_gender, doctor_id, doctor_name, doctor_email, hospital,
+                specialization, appointment_date, appointment_time, symptoms,
+                disease, notes, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?);
+        """, (
+            ref,
+            str(data.get("patient_email") or "patient@example.com").strip(),
+            str(data.get("patient_name") or "Patient").strip(),
+            str(data.get("patient_phone") or "").strip(),
+            patient_age,
+            str(data.get("patient_gender") or "Not specified").strip(),
+            doc_id,
+            doc_name,
+            doc_email,
+            str(data.get("hospital") or "Hospital").strip(),
+            str(data.get("specialization") or "Specialist").strip(),
+            str(apt_date),
+            time_slot,
+            str(data.get("symptoms") or "").strip(),
+            str(data.get("disease") or "General Health Consultation").strip(),
+            str(data.get("notes") or "").strip(),
+            now_str,
+            now_str
+        ))
+        new_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        print(f"[FALLBACK-DB] Successfully saved appointment #{new_id} ({ref}) to local fallback store.")
+        return new_id, ref
+    except Exception as exc:
+        print(f"[FALLBACK-DB-ERROR] Error saving to fallback store: {exc}")
+        return None, None
+
 def create_appointment(data):
     """
     Create a new patient appointment request with reference token.
     Returns (appointment_id, appointment_ref).
     """
-    try:
-        import uuid
-        from datetime import datetime, date, timedelta
-        ref = f"APT-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+    import uuid
+    from datetime import datetime, date, timedelta
+    ref = f"APT-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
-        # 1. Safely parse appointment_date (PostgreSQL DATE cannot take empty string "")
-        raw_date = data.get("appointment_date")
-        apt_date = None
-        if raw_date and str(raw_date).strip():
-            try:
-                if isinstance(raw_date, (datetime, date)):
-                    apt_date = raw_date
-                else:
-                    apt_date = datetime.strptime(str(raw_date).strip()[:10], "%Y-%m-%d").date()
-            except Exception:
-                apt_date = (datetime.now() + timedelta(days=1)).date()
-        if not apt_date:
+    # 1. Safely parse appointment_date (PostgreSQL DATE cannot take empty string "")
+    raw_date = data.get("appointment_date")
+    apt_date = None
+    if raw_date and str(raw_date).strip():
+        try:
+            if isinstance(raw_date, (datetime, date)):
+                apt_date = raw_date
+            else:
+                apt_date = datetime.strptime(str(raw_date).strip()[:10], "%Y-%m-%d").date()
+        except Exception:
             apt_date = (datetime.now() + timedelta(days=1)).date()
+    if not apt_date:
+        apt_date = (datetime.now() + timedelta(days=1)).date()
 
-        # 2. Safely parse integer fields
-        try:
-            patient_age = int(data.get("patient_age") or 30)
-        except Exception:
-            patient_age = 30
+    # 2. Safely parse integer fields
+    try:
+        patient_age = int(data.get("patient_age") or 30)
+    except Exception:
+        patient_age = 30
 
-        try:
-            doc_id = int(data.get("doctor_id") or 0)
-        except Exception:
-            doc_id = 0
+    try:
+        doc_id = int(data.get("doctor_id") or 0)
+    except Exception:
+        doc_id = 0
 
-        # 3. Safely clean text fields
-        doc_name = str(data.get("doctor_name") or "Specialist").strip()
-        disease = str(data.get("disease") or "General Health Consultation").strip()
-        if not disease:
-            disease = "General Health Consultation"
-        symptoms = str(data.get("symptoms") or "Clinical Checkup").strip()
-        time_slot = str(data.get("appointment_time") or "09:30 AM - Morning").strip()
+    # 3. Safely clean text fields
+    doc_name = str(data.get("doctor_name") or "Specialist").strip()
+    disease = str(data.get("disease") or "General Health Consultation").strip()
+    if not disease:
+        disease = "General Health Consultation"
+    symptoms = str(data.get("symptoms") or "Clinical Checkup").strip()
+    time_slot = str(data.get("appointment_time") or "09:30 AM - Morning").strip()
 
+    # Resolve doctor email
+    doc_email = str(data.get("doctor_email") or "").strip()
+    if not doc_email:
+        clean = re.sub(r"[^a-zA-Z0-9]", "", str(doc_name or "").lower())
+        if not clean.startswith("dr") and clean:
+            clean = "dr" + clean
+        doc_email = f"{clean}@hospital.com" if clean else "doctor@hospital.com"
+
+    try:
         con = get_connection()
         cur = con.cursor()
 
         # If doc_id is 0 or missing, resolve from doctors table by name
         if doc_id == 0 and doc_name:
-            cur.execute('SELECT id FROM "doctors" WHERE LOWER(doctor) = LOWER(%s) LIMIT 1;', [doc_name])
-            row = cur.fetchone()
-            if row and row[0]:
-                doc_id = row[0]
-
-        # Resolve doctor email
-        doc_email = str(data.get("doctor_email") or "").strip()
-        if not doc_email:
-            clean = re.sub(r"[^a-zA-Z0-9]", "", str(doc_name or "").lower())
-            if not clean.startswith("dr") and clean:
-                clean = "dr" + clean
-            doc_email = f"{clean}@hospital.com" if clean else "doctor@hospital.com"
+            try:
+                cur.execute('SELECT id FROM "doctors" WHERE LOWER(doctor) = LOWER(%s) LIMIT 1;', [doc_name])
+                row = cur.fetchone()
+                if row and row[0]:
+                    doc_id = row[0]
+            except Exception:
+                pass
 
         sql = '''
             INSERT INTO appointments (
@@ -622,95 +702,109 @@ def create_appointment(data):
         con.close()
         return new_id, ref
     except Exception as exc:
-        print(f"[DB-WARN] Error creating appointment: {exc}")
-        # Auto-heal: if relation "appointments" does not exist, initialize schemas and retry once
-        if "appointments" in str(exc).lower() or "does not exist" in str(exc).lower():
-            try:
-                print("[DB-AUTOHEAL] Attempting auto-recovery for missing appointments table...")
-                import init_system_db
-                init_system_db.setup_all_schemas()
-                con_retry = get_connection()
-                cur_retry = con_retry.cursor()
-                cur_retry.execute(sql, [
-                    ref,
-                    str(data.get("patient_email") or "patient@example.com").strip(),
-                    str(data.get("patient_name") or "Patient").strip(),
-                    str(data.get("patient_phone") or "").strip(),
-                    patient_age,
-                    str(data.get("patient_gender") or "Not specified").strip(),
-                    doc_id,
-                    doc_name,
-                    doc_email,
-                    str(data.get("hospital") or "Hospital").strip(),
-                    str(data.get("specialization") or "Specialist").strip(),
-                    apt_date,
-                    time_slot,
-                    symptoms,
-                    disease,
-                    str(data.get("notes") or "").strip()
-                ])
-                new_id = cur_retry.fetchone()[0]
-                con_retry.commit()
-                con_retry.close()
-                print(f"[DB-AUTOHEAL] Successfully recovered and created appointment #{new_id} ({ref})")
-                return new_id, ref
-            except Exception as retry_err:
-                print(f"[DB-AUTOHEAL-FAIL] Failed to auto-recover appointment creation: {retry_err}")
-        return None, None
+        print(f"[DB-WARN] Error creating appointment in PostgreSQL: {exc}")
+        # Auto-heal: ensure schema exists and retry once
+        try:
+            print("[DB-AUTOHEAL] Attempting auto-recovery for missing table or column in PostgreSQL...")
+            import init_system_db
+            init_system_db.setup_all_schemas()
+            con_retry = get_connection()
+            cur_retry = con_retry.cursor()
+            cur_retry.execute(sql, [
+                ref,
+                str(data.get("patient_email") or "patient@example.com").strip(),
+                str(data.get("patient_name") or "Patient").strip(),
+                str(data.get("patient_phone") or "").strip(),
+                patient_age,
+                str(data.get("patient_gender") or "Not specified").strip(),
+                doc_id,
+                doc_name,
+                doc_email,
+                str(data.get("hospital") or "Hospital").strip(),
+                str(data.get("specialization") or "Specialist").strip(),
+                apt_date,
+                time_slot,
+                symptoms,
+                disease,
+                str(data.get("notes") or "").strip()
+            ])
+            new_id = cur_retry.fetchone()[0]
+            con_retry.commit()
+            con_retry.close()
+            print(f"[DB-AUTOHEAL] Successfully recovered and created appointment #{new_id} ({ref})")
+            return new_id, ref
+        except Exception as retry_err:
+            print(f"[DB-AUTOHEAL-FAIL] Recovery failed ({retry_err}). Falling back to local store.")
+            return _save_fallback_appointment(data, ref, apt_date, time_slot, patient_age, doc_id, doc_name, doc_email)
 
 
 def get_appointment_by_id(apt_id):
     """Fetch complete details of an appointment by ID with doctor email attached."""
+    apt = None
     try:
         import re
         con = get_connection()
         cur = con.cursor()
         cur.execute('SELECT * FROM appointments WHERE id = %s;', [apt_id])
         row = cur.fetchone()
-        if not row:
-            con.close()
-            return None
-        columns = [desc[0] for desc in cur.description]
-        apt = dict(zip(columns, row))
-        
-        # Attach doctor email for testing and communication
-        if not apt.get("doctor_email"):
-            doc_id = apt.get("doctor_id")
-            doc_name = (apt.get("doctor_name") or "").strip()
+        if row:
+            columns = [desc[0] for desc in cur.description]
+            apt = dict(zip(columns, row))
             
-            # Priority 1: Match by doctor name (exact or normalized)
-            doc_row = None
-            if doc_name:
-                cur.execute('SELECT email, id FROM "doctors" WHERE LOWER(doctor) = LOWER(%s) LIMIT 1;', [doc_name])
-                doc_row = cur.fetchone()
-                if not doc_row:
-                    norm_name = re.sub(r"^dr\.?\s*", "dr.", doc_name, flags=re.IGNORECASE)
-                    cur.execute(r'''SELECT email, id FROM "doctors" WHERE LOWER(REGEXP_REPLACE(doctor, '^dr\.?\s*', 'dr.', 'i')) = LOWER(%s) LIMIT 1;''', [norm_name])
+            # Attach doctor email for testing and communication
+            if not apt.get("doctor_email"):
+                doc_id = apt.get("doctor_id")
+                doc_name = (apt.get("doctor_name") or "").strip()
+                
+                # Priority 1: Match by doctor name (exact or normalized)
+                doc_row = None
+                if doc_name:
+                    cur.execute('SELECT email, id FROM "doctors" WHERE LOWER(doctor) = LOWER(%s) LIMIT 1;', [doc_name])
+                    doc_row = cur.fetchone()
+                    if not doc_row:
+                        norm_name = re.sub(r"^dr\.?\s*", "dr.", doc_name, flags=re.IGNORECASE)
+                        cur.execute(r'''SELECT email, id FROM "doctors" WHERE LOWER(REGEXP_REPLACE(doctor, '^dr\.?\s*', 'dr.', 'i')) = LOWER(%s) LIMIT 1;''', [norm_name])
+                        doc_row = cur.fetchone()
+
+                # Priority 2: Fallback to doctor_id if name query didn't match
+                if not doc_row and doc_id:
+                    cur.execute('SELECT email, id FROM "doctors" WHERE id = %s LIMIT 1;', [doc_id])
                     doc_row = cur.fetchone()
 
-            # Priority 2: Fallback to doctor_id if name query didn't match
-            if not doc_row and doc_id:
-                cur.execute('SELECT email, id FROM "doctors" WHERE id = %s LIMIT 1;', [doc_id])
-                doc_row = cur.fetchone()
-
-            if doc_row and doc_row[0]:
-                apt["doctor_email"] = doc_row[0]
-                if doc_row[1]:
-                    apt["doctor_id"] = doc_row[1]
-            else:
-                clean = re.sub(r"[^a-zA-Z0-9]", "", str(doc_name or "").lower())
-                if not clean.startswith("dr") and clean:
-                    clean = "dr" + clean
-                apt["doctor_email"] = f"{clean}@hospital.com" if clean else "doctor@hospital.com"
+                if doc_row and doc_row[0]:
+                    apt["doctor_email"] = doc_row[0]
+                    if doc_row[1]:
+                        apt["doctor_id"] = doc_row[1]
+                else:
+                    clean = re.sub(r"[^a-zA-Z0-9]", "", str(doc_name or "").lower())
+                    if not clean.startswith("dr") and clean:
+                        clean = "dr" + clean
+                    apt["doctor_email"] = f"{clean}@hospital.com" if clean else "doctor@hospital.com"
+            con.close()
+            return apt
         con.close()
-        return apt
     except Exception as exc:
-        print(f"[DB-WARN] Error fetching appointment #{apt_id}: {exc}")
-        return None
+        print(f"[DB-WARN] Error fetching appointment #{apt_id} from PostgreSQL: {exc}")
+
+    # Fallback to local SQLite store
+    try:
+        conn = _get_fallback_sqlite()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM appointments WHERE id = ?;", (apt_id,))
+        fb_row = cur.fetchone()
+        conn.close()
+        if fb_row:
+            return dict(fb_row)
+    except Exception as fb_exc:
+        print(f"[FALLBACK-DB-ERROR] Error looking up appointment in fallback: {fb_exc}")
+
+    return None
 
 
 def get_patient_appointments(patient_email):
     """Fetch all appointments booked by a patient with doctor email attached."""
+    results = []
+    seen_refs = set()
     try:
         import re
         con = get_connection()
@@ -725,7 +819,6 @@ def get_patient_appointments(patient_email):
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
         con.close()
-        results = []
         for r in rows:
             item = dict(zip(columns, r))
             if not item.get("doctor_email"):
@@ -734,10 +827,27 @@ def get_patient_appointments(patient_email):
                     clean = "dr" + clean
                 item["doctor_email"] = f"{clean}@hospital.com" if clean else "doctor@hospital.com"
             results.append(item)
-        return results
+            if item.get("appointment_ref"):
+                seen_refs.add(item["appointment_ref"])
     except Exception as exc:
-        print(f"[DB-WARN] Error fetching patient appointments: {exc}")
-        return []
+        print(f"[DB-WARN] Error fetching patient appointments from PostgreSQL: {exc}")
+
+    # Merge any fallback stored appointments
+    try:
+        conn = _get_fallback_sqlite()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM appointments WHERE LOWER(patient_email) = LOWER(?) ORDER BY id DESC;", (patient_email,))
+        fb_rows = cur.fetchall()
+        conn.close()
+        for r in fb_rows:
+            d = dict(r)
+            if d.get("appointment_ref") not in seen_refs:
+                results.append(d)
+                seen_refs.add(d.get("appointment_ref"))
+    except Exception:
+        pass
+
+    return results
 
 
 def delete_appointment_by_id(apt_id, user_email=None, user_role=None):
