@@ -328,10 +328,29 @@ def save_patient_review(review_dict):
     try:
         con = get_connection()
         cur = con.cursor()
-        cols = list(review_dict.keys())
+        
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'patient_reviews';")
+        available_cols = {r[0] for r in cur.fetchall()}
+
+        cols = [c for c in review_dict.keys() if c in available_cols]
         cols_quoted = ', '.join([f'"{c}"' for c in cols])
         placeholders = ', '.join(['%s'] * len(cols))
-        vals = [review_dict[c] for c in cols]
+        vals = []
+        for c in cols:
+            val = review_dict[c]
+            if c in ("patient_rating", "doctor_id", "appointment_id", "consultation_fee", "experience_years") and val is not None:
+                try:
+                    vals.append(int(float(val)))
+                except Exception:
+                    vals.append(0)
+            elif c == "average_rating" and val is not None:
+                try:
+                    vals.append(float(val))
+                except Exception:
+                    vals.append(5.0)
+            else:
+                vals.append(val)
+
         cur.execute(f'INSERT INTO "patient_reviews" ({cols_quoted}) VALUES ({placeholders}) RETURNING id;', vals)
         new_id = cur.fetchone()[0]
         con.commit()
@@ -949,15 +968,16 @@ def get_doctor_appointments(doctor_name=None, doctor_id=None, status=None):
         cur = con.cursor()
         where_clauses = ["1=1"]
         params = []
-        if doctor_id and doctor_name:
-            where_clauses.append("(doctor_id = %s OR LOWER(doctor_name) = LOWER(%s))")
-            params.extend([doctor_id, doctor_name.strip()])
-        elif doctor_id:
-            where_clauses.append("doctor_id = %s")
-            params.append(doctor_id)
-        elif doctor_name:
-            where_clauses.append("LOWER(doctor_name) = LOWER(%s)")
-            params.append(doctor_name.strip())
+        doc_id_val = int(doctor_id) if doctor_id else 0
+        name_val = (doctor_name or "").strip()
+
+        if doc_id_val > 0 or name_val:
+            where_clauses.append("""(
+                (%s::bigint > 0 AND doctor_id = %s::bigint)
+                OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
+                OR (LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z]', '', 'g')) = LOWER(REGEXP_REPLACE(%s, '[^a-zA-Z]', '', 'g')) AND %s <> '')
+            )""")
+            params.extend([doc_id_val, doc_id_val, name_val, name_val, name_val, name_val])
 
         if status:
             where_clauses.append("status = %s")
@@ -1523,35 +1543,43 @@ def delete_hospital_record(hosp_id):
 
 # ==================== REVIEWS: PRIVACY & MODERATION ====================
 
-def get_doctor_reviews_anonymized(doctor_name):
+def get_doctor_reviews_anonymized(doctor_name, doctor_id=None):
     """
     STRICT PRIVACY GUARANTEE:
     Fetch reviews for a doctor where PATIENT IDENTITY IS COMPLETELY MASKED.
     Doctor can see feedback text, ratings, sentiment, and doctor response,
     but CANNOT see who submitted it (patient name and email are strictly hidden).
+    Matches flexibly by doctor_id, exact doctor_name, or regex-normalized name.
     """
     try:
         con = get_connection()
         cur = con.cursor()
+        doc_id_val = int(doctor_id) if doctor_id else 0
+        name_val = (doctor_name or "").strip()
+
         cur.execute('''
             SELECT
                 id,
-                new_feedback AS review_text,
-                patient_rating,
-                sentiment_label,
+                COALESCE(new_feedback, feedback::text, '') AS review_text,
+                COALESCE(patient_rating, 5) AS patient_rating,
+                COALESCE(sentiment_label, 'Positive') AS sentiment_label,
                 doctor_response,
-                is_reported,
-                submitted_at,
+                COALESCE(is_reported, FALSE) AS is_reported,
+                COALESCE(submitted_at, '') AS submitted_at,
                 waiting_time_rating,
                 communication_rating,
                 cost_satisfaction_rating,
-                moderation_status,
+                COALESCE(moderation_status, 'Published') AS moderation_status,
                 'Verified Patient' AS patient_display_name
             FROM "patient_reviews"
-            WHERE LOWER(doctor_name) = LOWER(%s)
+            WHERE (
+                (%s::bigint > 0 AND doctor_id = %s::bigint)
+                OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
+                OR (LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z]', '', 'g')) = LOWER(REGEXP_REPLACE(%s, '[^a-zA-Z]', '', 'g')) AND %s <> '')
+            )
               AND (moderation_status IS NULL OR moderation_status <> 'Removed')
             ORDER BY id DESC;
-        ''', [doctor_name.strip()])
+        ''', [doc_id_val, doc_id_val, name_val, name_val, name_val, name_val])
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
         con.close()
@@ -1795,30 +1823,40 @@ def get_doctor_dashboard_metrics(doctor_name, doctor_id=None):
     try:
         con = get_connection()
         cur = con.cursor()
+        doc_id_val = int(doctor_id) if doctor_id else 0
+        name_val = (doctor_name or "").strip()
+
+        match_clause = """(
+            (%s::bigint > 0 AND doctor_id = %s::bigint)
+            OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
+            OR (LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z]', '', 'g')) = LOWER(REGEXP_REPLACE(%s, '[^a-zA-Z]', '', 'g')) AND %s <> '')
+        )"""
+        match_params = [doc_id_val, doc_id_val, name_val, name_val, name_val, name_val]
 
         # Appointments breakdown
-        cur.execute('''
+        cur.execute(f'''
             SELECT 
                 COUNT(*) AS total,
                 COUNT(*) FILTER (WHERE status = 'Pending') AS pending,
                 COUNT(*) FILTER (WHERE status = 'Approved') AS approved,
                 COUNT(*) FILTER (WHERE status = 'Completed') AS completed
             FROM appointments
-            WHERE LOWER(doctor_name) = LOWER(%s);
-        ''', [doctor_name.strip()])
+            WHERE {match_clause};
+        ''', match_params)
         apt_row = cur.fetchone()
 
         # Reviews & Sentiments
-        cur.execute('''
+        cur.execute(f'''
             SELECT 
                 COUNT(*) AS total_rev,
-                ROUND(AVG(patient_rating), 2) AS avg_rating,
+                ROUND(AVG(COALESCE(patient_rating, 5)), 2) AS avg_rating,
                 COUNT(*) FILTER (WHERE LOWER(sentiment_label) = 'positive') AS pos,
                 COUNT(*) FILTER (WHERE LOWER(sentiment_label) = 'negative') AS neg,
                 COUNT(*) FILTER (WHERE LOWER(sentiment_label) = 'neutral') AS neu
             FROM "patient_reviews"
-            WHERE LOWER(doctor_name) = LOWER(%s);
-        ''', [doctor_name.strip()])
+            WHERE {match_clause}
+              AND (moderation_status IS NULL OR moderation_status <> 'Removed');
+        ''', match_params)
         rev_row = cur.fetchone()
 
         tot_rev = rev_row[0] or 0
@@ -1829,9 +1867,11 @@ def get_doctor_dashboard_metrics(doctor_name, doctor_id=None):
         tot_sent = max(tot_rev, 1)
 
         # NLP Service Insights (waiting time, communication, explanation)
-        cur.execute('''
-            SELECT new_feedback FROM "patient_reviews" WHERE LOWER(doctor_name) = LOWER(%s);
-        ''', [doctor_name.strip()])
+        cur.execute(f'''
+            SELECT COALESCE(new_feedback, feedback::text, '') FROM "patient_reviews" 
+            WHERE {match_clause}
+              AND (moderation_status IS NULL OR moderation_status <> 'Removed');
+        ''', match_params)
         feedbacks = [r[0] or "" for r in cur.fetchall()]
         con.close()
 

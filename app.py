@@ -3206,13 +3206,24 @@ def appointment_feedback(apt_id):
     sentiment_label = predict_sentiment(feedback_text)
     user_email = session.get("user_email", "patient@example.com")
 
+    doc_id = apt.get("doctor_id") or 0
+    doc_name = apt.get("doctor_name", "")
+    if not doc_id and doc_name:
+        try:
+            from db import get_doctor_by_identifier
+            found = get_doctor_by_identifier(doc_name)
+            if found and found.get("id"):
+                doc_id = found["id"]
+        except Exception:
+            pass
+
     # Save to PostgreSQL patient_reviews (with patient_email for Admin, but masked for Doctor)
     review_record = {
         "submitted_at": datetime.now().isoformat(timespec="seconds"),
         "new_feedback": feedback_text,
         "patient_rating": rating,
-        "doctor_id": apt.get("doctor_id") or 0,
-        "doctor_name": apt.get("doctor_name", ""),
+        "doctor_id": doc_id,
+        "doctor_name": doc_name,
         "hospital": apt.get("hospital", ""),
         "specialization": apt.get("specialization", ""),
         "department": apt.get("disease", ""),
@@ -3235,6 +3246,24 @@ def appointment_feedback(apt_id):
         cur.execute("UPDATE appointments SET has_feedback = TRUE WHERE id = %s;", [apt_id])
         con.commit()
         con.close()
+    except Exception:
+        pass
+
+    # Notify doctor that new feedback arrived
+    try:
+        from db import create_notification, get_doctor_record_by_id
+        doc_email = apt.get("doctor_email")
+        if not doc_email and doc_id:
+            d_rec = get_doctor_record_by_id(doc_id)
+            if d_rec and d_rec.get("email"):
+                doc_email = d_rec["email"]
+        if doc_email:
+            create_notification(
+                doc_email, "doctor",
+                "New Patient Feedback Received",
+                f"A patient has submitted anonymous consultation feedback (Rating: {rating}/5 stars).",
+                "review_received", apt_id
+            )
     except Exception:
         pass
 
@@ -3357,15 +3386,16 @@ def doctor_dashboard():
         }
 
     doc_name = doctor.get("doctor", "")
-    all_apts = get_doctor_appointments(doctor_name=doc_name)
+    doc_id = doctor.get("id") or session.get("doctor_id")
+    all_apts = get_doctor_appointments(doctor_name=doc_name, doctor_id=doc_id)
     pending_apts = [a for a in all_apts if a.get("status") == "Pending"]
     approved_apts = [a for a in all_apts if a.get("status") == "Approved"]
     completed_apts = [a for a in all_apts if a.get("status") == "Completed"]
 
-    metrics = get_doctor_dashboard_metrics(doc_name, doctor.get("id"))
+    metrics = get_doctor_dashboard_metrics(doc_name, doctor_id=doc_id)
 
     # STRICT PRIVACY: Fetch reviews where patient identity is masked
-    reviews = get_doctor_reviews_anonymized(doc_name)
+    reviews = get_doctor_reviews_anonymized(doc_name, doctor_id=doc_id)
 
     success_msg = request.args.get("success", "")
     error_msg = request.args.get("error", "")

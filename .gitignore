@@ -15,6 +15,7 @@ ENV/
 data_cache.pkl
 *.log
 last_500_error.log
+*.db
 .vscode/
 .idea/
 .sixth/

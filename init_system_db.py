@@ -70,13 +70,22 @@ def setup_all_schemas():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS "patient_reviews" (
             id SERIAL PRIMARY KEY,
+            doctor_id BIGINT,
             doctor_name VARCHAR(255),
             hospital VARCHAR(255),
+            specialization VARCHAR(255),
+            department VARCHAR(255),
+            location VARCHAR(255),
+            consultation_fee BIGINT DEFAULT 500,
+            experience_years BIGINT DEFAULT 10,
+            average_rating DOUBLE PRECISION DEFAULT 5.0,
+            sentiment_label VARCHAR(50) DEFAULT 'Positive',
+            complaint_category VARCHAR(255),
             patient_email VARCHAR(255) DEFAULT 'patient@example.com',
             patient_name VARCHAR(255) DEFAULT 'Patient',
             patient_rating INTEGER DEFAULT 5,
             new_feedback TEXT,
-            sentiment_label VARCHAR(50) DEFAULT 'Positive',
+            feedback TEXT,
             doctor_response TEXT,
             is_reported BOOLEAN DEFAULT FALSE,
             report_reason TEXT,
@@ -87,6 +96,7 @@ def setup_all_schemas():
             communication_rating INTEGER DEFAULT 5,
             cost_satisfaction_rating INTEGER DEFAULT 5,
             appointment_id INTEGER,
+            submitted_at TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
@@ -264,6 +274,41 @@ def setup_all_schemas():
     cur.execute("""
         DO $$
         BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='doctor_id') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN doctor_id BIGINT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='doctor_name') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN doctor_name VARCHAR(255);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='hospital') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN hospital VARCHAR(255);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='specialization') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN specialization VARCHAR(255);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='department') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN department VARCHAR(255);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='location') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN location VARCHAR(255);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='consultation_fee') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN consultation_fee BIGINT DEFAULT 500;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='experience_years') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN experience_years BIGINT DEFAULT 10;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='average_rating') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN average_rating DOUBLE PRECISION DEFAULT 5.0;
+            ELSE
+                ALTER TABLE "patient_reviews" ALTER COLUMN average_rating TYPE DOUBLE PRECISION USING average_rating::double precision;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='submitted_at') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN submitted_at TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='complaint_category') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN complaint_category VARCHAR(255);
+            END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='patient_email') THEN
                 ALTER TABLE "patient_reviews" ADD COLUMN patient_email VARCHAR(255) DEFAULT 'patient@example.com';
             END IF;
