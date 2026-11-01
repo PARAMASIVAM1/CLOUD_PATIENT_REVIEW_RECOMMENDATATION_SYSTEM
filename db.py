@@ -322,28 +322,77 @@ def load_reviews_df():
 
 def save_patient_review(review_dict):
     """
-    Insert a submitted review into PostgreSQL 'patient_reviews' table.
-    Returns the generated review id.
+    Insert or update a submitted review into PostgreSQL 'patient_reviews' table.
+    Ensures table schema is complete with primary key 'id' and all privacy columns.
+    Returns the generated or existing review id.
     """
     try:
         con = get_connection()
         cur = con.cursor()
         
+        # 1. Guarantee 'id' SERIAL PRIMARY KEY and other required columns exist
+        try:
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='id') THEN
+                        ALTER TABLE "patient_reviews" ADD COLUMN id SERIAL PRIMARY KEY;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='appointment_id') THEN
+                        ALTER TABLE "patient_reviews" ADD COLUMN appointment_id INTEGER;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='new_feedback') THEN
+                        ALTER TABLE "patient_reviews" ADD COLUMN new_feedback TEXT;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='patient_rating') THEN
+                        ALTER TABLE "patient_reviews" ADD COLUMN patient_rating BIGINT DEFAULT 5;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='sentiment_label') THEN
+                        ALTER TABLE "patient_reviews" ADD COLUMN sentiment_label VARCHAR(50) DEFAULT 'Positive';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='moderation_status') THEN
+                        ALTER TABLE "patient_reviews" ADD COLUMN moderation_status VARCHAR(40) DEFAULT 'Published';
+                    END IF;
+                END $$;
+            """)
+            con.commit()
+        except Exception:
+            try:
+                con.rollback()
+            except Exception:
+                pass
+
+        # 2. Enrich review record from appointment if appointment_id is present
+        apt_id = review_dict.get("appointment_id")
+        if apt_id:
+            try:
+                cur.execute('SELECT doctor_id, doctor_name, doctor_email, hospital, specialization FROM appointments WHERE id = %s;', [apt_id])
+                apt_row = cur.fetchone()
+                if apt_row:
+                    if not review_dict.get("doctor_id") or review_dict.get("doctor_id") == 0:
+                        review_dict["doctor_id"] = apt_row[0]
+                    if not review_dict.get("doctor_name"):
+                        review_dict["doctor_name"] = apt_row[1]
+                    if not review_dict.get("hospital"):
+                        review_dict["hospital"] = apt_row[3]
+                    if not review_dict.get("specialization"):
+                        review_dict["specialization"] = apt_row[4]
+            except Exception:
+                pass
+
         cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'patient_reviews';")
         available_cols = {r[0] for r in cur.fetchall()}
 
-        cols = [c for c in review_dict.keys() if c in available_cols]
-        cols_quoted = ', '.join([f'"{c}"' for c in cols])
-        placeholders = ', '.join(['%s'] * len(cols))
+        cols = [c for c in review_dict.keys() if c in available_cols and c != "id"]
         vals = []
         for c in cols:
             val = review_dict[c]
-            if c in ("patient_rating", "doctor_id", "appointment_id", "consultation_fee", "experience_years") and val is not None:
+            if c in ("patient_rating", "doctor_id", "appointment_id", "consultation_fee", "experience_years", "waiting_time_rating", "communication_rating", "cost_satisfaction_rating") and val is not None:
                 try:
                     vals.append(int(float(val)))
                 except Exception:
                     vals.append(0)
-            elif c == "average_rating" and val is not None:
+            elif c in ("average_rating", "recommendation_score") and val is not None:
                 try:
                     vals.append(float(val))
                 except Exception:
@@ -351,9 +400,51 @@ def save_patient_review(review_dict):
             else:
                 vals.append(val)
 
-        cur.execute(f'INSERT INTO "patient_reviews" ({cols_quoted}) VALUES ({placeholders}) RETURNING id;', vals)
-        new_id = cur.fetchone()[0]
+        # 3. If review already exists for this appointment_id, update it
+        if apt_id and "appointment_id" in available_cols:
+            cur.execute('SELECT id FROM "patient_reviews" WHERE appointment_id = %s LIMIT 1;', [apt_id])
+            existing = cur.fetchone()
+            if existing:
+                existing_id = existing[0]
+                set_clauses = [f'"{c}" = %s' for c in cols]
+                update_vals = vals + [existing_id]
+                cur.execute(f'UPDATE "patient_reviews" SET {", ".join(set_clauses)} WHERE id = %s;', update_vals)
+                con.commit()
+                # Ensure appointment is marked as has_feedback
+                try:
+                    cur.execute("UPDATE appointments SET has_feedback = TRUE WHERE id = %s;", [apt_id])
+                    con.commit()
+                except Exception:
+                    pass
+                con.close()
+                print(f"[DB] Review #{existing_id} for appointment #{apt_id} updated in PostgreSQL.")
+                return existing_id
+
+        # 4. Insert new review
+        cols_quoted = ', '.join([f'"{c}"' for c in cols])
+        placeholders = ', '.join(['%s'] * len(cols))
+        try:
+            cur.execute(f'INSERT INTO "patient_reviews" ({cols_quoted}) VALUES ({placeholders}) RETURNING id;', vals)
+            new_id = cur.fetchone()[0]
+        except Exception:
+            con.rollback()
+            # Fallback insert without RETURNING id
+            cur.execute(f'INSERT INTO "patient_reviews" ({cols_quoted}) VALUES ({placeholders});', vals)
+            con.commit()
+            cur.execute('SELECT MAX(id) FROM "patient_reviews";')
+            row = cur.fetchone()
+            new_id = row[0] if row and row[0] else 1
+
         con.commit()
+
+        # Update appointment has_feedback flag
+        if apt_id:
+            try:
+                cur.execute("UPDATE appointments SET has_feedback = TRUE WHERE id = %s;", [apt_id])
+                con.commit()
+            except Exception:
+                pass
+
         con.close()
         print(f"[DB] Review #{new_id} for Doctor '{review_dict.get('doctor_name')}' saved to PostgreSQL.")
         return new_id
@@ -1549,17 +1640,39 @@ def get_doctor_reviews_anonymized(doctor_name, doctor_id=None):
     Fetch reviews for a doctor where PATIENT IDENTITY IS COMPLETELY MASKED.
     Doctor can see feedback text, ratings, sentiment, and doctor response,
     but CANNOT see who submitted it (patient name and email are strictly hidden).
-    Matches flexibly by doctor_id, exact doctor_name, or regex-normalized name.
+    Matches flexibly by doctor_id, exact doctor_name, normalized name, or appointment_id.
     """
     try:
         con = get_connection()
         cur = con.cursor()
         doc_id_val = int(doctor_id) if doctor_id else 0
         name_val = (doctor_name or "").strip()
+        import re
+        norm_name = re.sub(r'^(dr)+', '', re.sub(r'[^a-zA-Z0-9]', '', name_val).lower())
+
+        # Auto-ensure id and appointment_id exist in patient_reviews
+        try:
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='id') THEN
+                        ALTER TABLE "patient_reviews" ADD COLUMN id SERIAL PRIMARY KEY;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='appointment_id') THEN
+                        ALTER TABLE "patient_reviews" ADD COLUMN appointment_id INTEGER;
+                    END IF;
+                END $$;
+            """)
+            con.commit()
+        except Exception:
+            try:
+                con.rollback()
+            except Exception:
+                pass
 
         cur.execute('''
             SELECT
-                id,
+                COALESCE(id, 0) AS id,
                 COALESCE(new_feedback, feedback::text, '') AS review_text,
                 COALESCE(patient_rating, 5) AS patient_rating,
                 COALESCE(sentiment_label, 'Positive') AS sentiment_label,
@@ -1575,11 +1688,17 @@ def get_doctor_reviews_anonymized(doctor_name, doctor_id=None):
             WHERE (
                 (%s::bigint > 0 AND doctor_id = %s::bigint)
                 OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
-                OR (LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z]', '', 'g')) = LOWER(REGEXP_REPLACE(%s, '[^a-zA-Z]', '', 'g')) AND %s <> '')
+                OR (REGEXP_REPLACE(LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z0-9]', '', 'g')), '^(dr)+', '') = %s AND %s <> '')
+                OR (appointment_id IS NOT NULL AND appointment_id IN (
+                    SELECT id FROM appointments 
+                    WHERE (%s::bigint > 0 AND doctor_id = %s::bigint)
+                       OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
+                       OR (REGEXP_REPLACE(LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z0-9]', '', 'g')), '^(dr)+', '') = %s AND %s <> '')
+                ))
             )
               AND (moderation_status IS NULL OR moderation_status <> 'Removed')
-            ORDER BY id DESC;
-        ''', [doc_id_val, doc_id_val, name_val, name_val, name_val, name_val])
+            ORDER BY COALESCE(id, 0) DESC, submitted_at DESC;
+        ''', [doc_id_val, doc_id_val, name_val, name_val, norm_name, norm_name, doc_id_val, doc_id_val, name_val, name_val, norm_name, norm_name])
         rows = cur.fetchall()
         columns = [desc[0] for desc in cur.description]
         con.close()
@@ -1825,13 +1944,25 @@ def get_doctor_dashboard_metrics(doctor_name, doctor_id=None):
         cur = con.cursor()
         doc_id_val = int(doctor_id) if doctor_id else 0
         name_val = (doctor_name or "").strip()
+        import re
+        norm_name = re.sub(r'^(dr)+', '', re.sub(r'[^a-zA-Z0-9]', '', name_val).lower())
 
-        match_clause = """(
+        apt_match = """(
             (%s::bigint > 0 AND doctor_id = %s::bigint)
             OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
-            OR (LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z]', '', 'g')) = LOWER(REGEXP_REPLACE(%s, '[^a-zA-Z]', '', 'g')) AND %s <> '')
+            OR (REGEXP_REPLACE(LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z0-9]', '', 'g')), '^(dr)+', '') = %s AND %s <> '')
         )"""
-        match_params = [doc_id_val, doc_id_val, name_val, name_val, name_val, name_val]
+        apt_params = [doc_id_val, doc_id_val, name_val, name_val, norm_name, norm_name]
+
+        rev_match = f"""(
+            (%s::bigint > 0 AND doctor_id = %s::bigint)
+            OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
+            OR (REGEXP_REPLACE(LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z0-9]', '', 'g')), '^(dr)+', '') = %s AND %s <> '')
+            OR (appointment_id IS NOT NULL AND appointment_id IN (
+                SELECT id FROM appointments WHERE {apt_match}
+            ))
+        )"""
+        rev_params = [doc_id_val, doc_id_val, name_val, name_val, norm_name, norm_name] + apt_params
 
         # Appointments breakdown
         cur.execute(f'''
@@ -1841,8 +1972,8 @@ def get_doctor_dashboard_metrics(doctor_name, doctor_id=None):
                 COUNT(*) FILTER (WHERE status = 'Approved') AS approved,
                 COUNT(*) FILTER (WHERE status = 'Completed') AS completed
             FROM appointments
-            WHERE {match_clause};
-        ''', match_params)
+            WHERE {apt_match};
+        ''', apt_params)
         apt_row = cur.fetchone()
 
         # Reviews & Sentiments
@@ -1854,9 +1985,9 @@ def get_doctor_dashboard_metrics(doctor_name, doctor_id=None):
                 COUNT(*) FILTER (WHERE LOWER(sentiment_label) = 'negative') AS neg,
                 COUNT(*) FILTER (WHERE LOWER(sentiment_label) = 'neutral') AS neu
             FROM "patient_reviews"
-            WHERE {match_clause}
+            WHERE {rev_match}
               AND (moderation_status IS NULL OR moderation_status <> 'Removed');
-        ''', match_params)
+        ''', rev_params)
         rev_row = cur.fetchone()
 
         tot_rev = rev_row[0] or 0
@@ -1869,9 +2000,9 @@ def get_doctor_dashboard_metrics(doctor_name, doctor_id=None):
         # NLP Service Insights (waiting time, communication, explanation)
         cur.execute(f'''
             SELECT COALESCE(new_feedback, feedback::text, '') FROM "patient_reviews" 
-            WHERE {match_clause}
+            WHERE {rev_match}
               AND (moderation_status IS NULL OR moderation_status <> 'Removed');
-        ''', match_params)
+        ''', rev_params)
         feedbacks = [r[0] or "" for r in cur.fetchall()]
         con.close()
 
@@ -1889,9 +2020,9 @@ def get_doctor_dashboard_metrics(doctor_name, doctor_id=None):
             "positive_count": pos_cnt,
             "negative_count": neg_cnt,
             "neutral_count": neu_cnt,
-            "positive_pct": round((pos_cnt / tot_sent) * 100, 1),
-            "negative_pct": round((neg_cnt / tot_sent) * 100, 1),
-            "neutral_pct": round((neu_cnt / tot_sent) * 100, 1),
+            "positive_pct": round((pos_cnt / tot_sent) * 100, 1) if tot_rev > 0 else 0.0,
+            "negative_pct": round((neg_cnt / tot_sent) * 100, 1) if tot_rev > 0 else 0.0,
+            "neutral_pct": round((neu_cnt / tot_sent) * 100, 1) if tot_rev > 0 else 0.0,
             "waiting_time_issues": waiting_time_issues,
             "good_explanation_score": good_explanation,
             "cost_concerns": cost_concerns

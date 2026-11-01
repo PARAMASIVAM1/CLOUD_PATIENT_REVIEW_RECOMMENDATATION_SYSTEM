@@ -16,6 +16,8 @@ def migrate_table(cur, con, table_name, df):
     
     # Infer SQL types preserving exact schema
     col_defs = []
+    if "id" not in df.columns:
+        col_defs.append('"id" SERIAL PRIMARY KEY')
     for col in df.columns:
         dtype = df[col].dtype
         if "int" in str(dtype):

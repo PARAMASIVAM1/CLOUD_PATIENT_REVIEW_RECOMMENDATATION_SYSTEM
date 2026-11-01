@@ -468,10 +468,12 @@ def _load_latest_patient_review(doctor_name, doctor_id=None):
             cur = con.cursor()
             doc_id_val = int(doctor_id) if doctor_id else 0
             name_val = (doctor_name or "").strip()
+            import re
+            norm_name = re.sub(r'^(dr)+', '', re.sub(r'[^a-zA-Z0-9]', '', name_val).lower())
             
             cur.execute("""
                 SELECT 
-                    id, 
+                    COALESCE(id, 0) AS id, 
                     COALESCE(new_feedback, feedback::text, '') AS new_feedback, 
                     COALESCE(patient_rating, 5) AS patient_rating, 
                     sentiment_label, 
@@ -481,13 +483,22 @@ def _load_latest_patient_review(doctor_name, doctor_id=None):
                 WHERE (
                     (%s::bigint > 0 AND doctor_id = %s::bigint)
                     OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
-                    OR (LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z]', '', 'g')) = LOWER(REGEXP_REPLACE(%s, '[^a-zA-Z]', '', 'g')) AND %s <> '')
+                    OR (REGEXP_REPLACE(LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z0-9]', '', 'g')), '^(dr)+', '') = %s AND %s <> '')
+                    OR (appointment_id IS NOT NULL AND appointment_id IN (
+                        SELECT id FROM appointments 
+                        WHERE (%s::bigint > 0 AND doctor_id = %s::bigint)
+                           OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
+                           OR (REGEXP_REPLACE(LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z0-9]', '', 'g')), '^(dr)+', '') = %s AND %s <> '')
+                    ))
                 )
                   AND (moderation_status IS NULL OR moderation_status <> 'Removed')
-                  AND (new_feedback IS NOT NULL AND TRIM(new_feedback) <> '')
-                ORDER BY id DESC
+                  AND (
+                      (new_feedback IS NOT NULL AND TRIM(new_feedback) <> '')
+                      OR (feedback IS NOT NULL AND TRIM(feedback::text) <> '')
+                  )
+                ORDER BY COALESCE(id, 0) DESC, submitted_at DESC
                 LIMIT 1;
-            """, [doc_id_val, doc_id_val, name_val, name_val, name_val, name_val])
+            """, [doc_id_val, doc_id_val, name_val, name_val, norm_name, norm_name, doc_id_val, doc_id_val, name_val, name_val, norm_name, norm_name])
             row = cur.fetchone()
             if row:
                 columns = [desc[0] for desc in cur.description]
@@ -534,10 +545,12 @@ def _load_doctor_reviews(doctor_name, doctor_id=None, limit=10):
             cur = con.cursor()
             doc_id_val = int(doctor_id) if doctor_id else 0
             name_val = (doctor_name or "").strip()
+            import re
+            norm_name = re.sub(r'^(dr)+', '', re.sub(r'[^a-zA-Z0-9]', '', name_val).lower())
             
             cur.execute("""
                 SELECT 
-                    id, 
+                    COALESCE(id, 0) AS id, 
                     COALESCE(new_feedback, feedback::text, '') AS new_feedback, 
                     COALESCE(patient_rating, 5) AS patient_rating, 
                     sentiment_label, 
@@ -547,13 +560,22 @@ def _load_doctor_reviews(doctor_name, doctor_id=None, limit=10):
                 WHERE (
                     (%s::bigint > 0 AND doctor_id = %s::bigint)
                     OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
-                    OR (LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z]', '', 'g')) = LOWER(REGEXP_REPLACE(%s, '[^a-zA-Z]', '', 'g')) AND %s <> '')
+                    OR (REGEXP_REPLACE(LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z0-9]', '', 'g')), '^(dr)+', '') = %s AND %s <> '')
+                    OR (appointment_id IS NOT NULL AND appointment_id IN (
+                        SELECT id FROM appointments 
+                        WHERE (%s::bigint > 0 AND doctor_id = %s::bigint)
+                           OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
+                           OR (REGEXP_REPLACE(LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z0-9]', '', 'g')), '^(dr)+', '') = %s AND %s <> '')
+                    ))
                 )
                   AND (moderation_status IS NULL OR moderation_status <> 'Removed')
-                  AND (new_feedback IS NOT NULL AND TRIM(new_feedback) <> '')
-                ORDER BY id DESC
+                  AND (
+                      (new_feedback IS NOT NULL AND TRIM(new_feedback) <> '')
+                      OR (feedback IS NOT NULL AND TRIM(feedback::text) <> '')
+                  )
+                ORDER BY COALESCE(id, 0) DESC, submitted_at DESC
                 LIMIT %s;
-            """, [doc_id_val, doc_id_val, name_val, name_val, name_val, name_val, limit])
+            """, [doc_id_val, doc_id_val, name_val, name_val, norm_name, norm_name, doc_id_val, doc_id_val, name_val, name_val, norm_name, norm_name, limit])
             rows = cur.fetchall()
             columns = [desc[0] for desc in cur.description]
             con.close()
@@ -3309,15 +3331,28 @@ def appointment_feedback(apt_id):
     if guard:
         return guard
 
-    from db import get_appointment_by_id, save_patient_review, update_appointment_status, create_notification, log_audit_action
+    from db import get_appointment_by_id, save_patient_review, update_appointment_status, create_notification, log_audit_action, get_connection
     from model import predict_sentiment
 
     apt = get_appointment_by_id(apt_id)
     if not apt:
         return render_template("404.html"), 404
 
+    # Check for existing review for this appointment
+    existing_review = None
+    try:
+        con = get_connection()
+        cur = con.cursor()
+        cur.execute('SELECT COALESCE(new_feedback, feedback::text, \'\') AS feedback, COALESCE(patient_rating, 5) AS rating FROM "patient_reviews" WHERE appointment_id = %s LIMIT 1;', [apt_id])
+        erow = cur.fetchone()
+        con.close()
+        if erow:
+            existing_review = {"feedback": erow[0], "rating": erow[1]}
+    except Exception:
+        pass
+
     if request.method == "GET":
-        return render_template("appointment_feedback.html", appointment=apt)
+        return render_template("appointment_feedback.html", appointment=apt, existing_review=existing_review)
 
     feedback_text = request.form.get("feedback", "").strip()
     try:
@@ -3352,7 +3387,7 @@ def appointment_feedback(apt_id):
         "location": "Tamil Nadu",
         "consultation_fee": 500,
         "experience_years": 10,
-        "average_rating": rating,
+        "average_rating": float(rating),
         "sentiment_label": sentiment_label,
         "complaint_category": apt.get("disease", "General"),
         "patient_email": user_email,
@@ -3362,7 +3397,6 @@ def appointment_feedback(apt_id):
 
     # Mark appointment feedback as completed
     try:
-        from db import get_connection
         con = get_connection()
         cur = con.cursor()
         cur.execute("UPDATE appointments SET has_feedback = TRUE WHERE id = %s;", [apt_id])
@@ -3388,6 +3422,9 @@ def appointment_feedback(apt_id):
             )
     except Exception:
         pass
+
+    log_audit_action(user_email, "patient", f"Submitted feedback for appointment #{apt_id} (Doctor: {doc_name})")
+    return redirect(url_for("my_appointments", success="Thank you! Your verified feedback has been submitted successfully and reflected in the doctor's portal."))
 
     # Audit log
     log_audit_action(user_email, "patient", "Submit Review", f"Review for Dr. {apt.get('doctor_name')} (Sentiment: {sentiment_label})")

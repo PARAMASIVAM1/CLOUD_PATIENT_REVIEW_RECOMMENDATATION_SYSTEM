@@ -23,17 +23,17 @@
         <div class="form-group" style="margin-bottom: 16px;">
             <label style="font-weight: 700;">Overall Treatment Rating (1 - 5 Stars)</label>
             <div style="display: flex; gap: 16px; margin-top: 6px;">
-                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="5" checked> ⭐ 5 (Excellent)</label>
-                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="4"> ⭐ 4 (Good)</label>
-                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="3"> ⭐ 3 (Average)</label>
-                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="2"> ⭐ 2 (Poor)</label>
-                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="1"> ⭐ 1 (Very Bad)</label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="5" {% if (existing_review and existing_review.rating == 5) or not existing_review %}checked{% endif %}> ⭐ 5 (Excellent)</label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="4" {% if existing_review and existing_review.rating == 4 %}checked{% endif %}> ⭐ 4 (Good)</label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="3" {% if existing_review and existing_review.rating == 3 %}checked{% endif %}> ⭐ 3 (Average)</label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="2" {% if existing_review and existing_review.rating == 2 %}checked{% endif %}> ⭐ 2 (Poor)</label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="radio" name="rating" value="1" {% if existing_review and existing_review.rating == 1 %}checked{% endif %}> ⭐ 1 (Very Bad)</label>
             </div>
         </div>
 
         <div class="form-group" style="margin-bottom: 20px;">
             <label style="font-weight: 700;">Your Detailed Experience & Feedback</label>
-            <textarea name="feedback" rows="5" placeholder="Share details about the doctor's explanation, treatment effectiveness, bedside manner, and hospital waiting time..." required></textarea>
+            <textarea name="feedback" rows="5" placeholder="Share details about the doctor's explanation, treatment effectiveness, bedside manner, and hospital waiting time..." required>{{ existing_review.feedback if existing_review else '' }}</textarea>
             <span class="muted" style="font-size: 0.82rem; margin-top: 4px; display: block;">
                 🔒 Privacy Note: Your review will be analyzed by our NLP Sentiment model and displayed anonymously to the doctor to preserve your confidentiality.
             </span>
@@ -41,7 +41,7 @@
 
         <div class="actions">
             <button type="submit" class="button" style="width: 100%; padding: 12px; font-size: 1rem; background: #10b981;">
-                ⭐ Submit Verified Review
+                {% if existing_review %}⭐ Update Verified Review{% else %}⭐ Submit Verified Review{% endif %}
             </button>
         </div>
     </form>

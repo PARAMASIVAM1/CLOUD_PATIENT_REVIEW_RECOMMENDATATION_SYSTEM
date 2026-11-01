@@ -110,8 +110,17 @@
                     <a href="/appointment/{{ apt.id }}/feedback" class="button" style="padding: 6px 14px; font-size: 0.85rem; background: #10b981;">
                         ⭐ Rate Treatment
                     </a>
+                    {% elif apt.status == 'Completed' and apt.has_feedback %}
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <span style="color: #10b981; font-size: 0.85rem; font-weight: 600;">✓ Feedback Submitted</span>
+                        <a href="/appointment/{{ apt.id }}/feedback" class="button secondary" style="padding: 4px 10px; font-size: 0.78rem; border-color: #10b981; color: #047857;">
+                            ✏️ Edit / Submit Feedback
+                        </a>
+                    </div>
                     {% elif apt.has_feedback %}
-                    <span style="color: #10b981; font-size: 0.85rem; font-weight: 600; padding: 6px 0;">✓ Feedback Submitted</span>
+                    <a href="/appointment/{{ apt.id }}/feedback" style="color: #10b981; font-size: 0.85rem; font-weight: 600; text-decoration: underline;">
+                        ✓ Feedback Submitted
+                    </a>
                     {% endif %}
                 </div>
             </div>

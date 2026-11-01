@@ -172,6 +172,9 @@ def setup_all_schemas():
     cur.execute("""
         DO $$
         BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='id') THEN
+                ALTER TABLE "doctors" ADD COLUMN id SERIAL PRIMARY KEY;
+            END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='doctors' AND column_name='email') THEN
                 ALTER TABLE "doctors" ADD COLUMN email VARCHAR(255);
             END IF;
@@ -274,6 +277,9 @@ def setup_all_schemas():
     cur.execute("""
         DO $$
         BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='id') THEN
+                ALTER TABLE "patient_reviews" ADD COLUMN id SERIAL PRIMARY KEY;
+            END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='patient_reviews' AND column_name='doctor_id') THEN
                 ALTER TABLE "patient_reviews" ADD COLUMN doctor_id BIGINT;
             END IF;
