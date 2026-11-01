@@ -457,29 +457,110 @@ def _append_patient_review(review_row, sync_postgres=True):
         return f"Could not save feedback to any Excel file: {exc}"
 
 
-def _load_latest_patient_review(doctor_name):
-    if not doctor_name:
+def _load_latest_patient_review(doctor_name, doctor_id=None):
+    if not doctor_name and not doctor_id:
         return None
-    frames = _load_review_frames(_patient_review_all_paths())
-    if not frames:
-        return None
-    reviews = _merge_review_frames(frames)
+    # 1. First, check PostgreSQL database (where all appointment and portal reviews are saved)
+    try:
+        from db import get_connection, is_db_connected
+        if is_db_connected():
+            con = get_connection()
+            cur = con.cursor()
+            doc_id_val = int(doctor_id) if doctor_id else 0
+            name_val = (doctor_name or "").strip()
+            
+            cur.execute("""
+                SELECT 
+                    id, 
+                    COALESCE(new_feedback, feedback::text, '') AS new_feedback, 
+                    COALESCE(patient_rating, 5) AS patient_rating, 
+                    sentiment_label, 
+                    COALESCE(submitted_at, '') AS submitted_at,
+                    doctor_response
+                FROM "patient_reviews"
+                WHERE (
+                    (%s::bigint > 0 AND doctor_id = %s::bigint)
+                    OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
+                    OR (LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z]', '', 'g')) = LOWER(REGEXP_REPLACE(%s, '[^a-zA-Z]', '', 'g')) AND %s <> '')
+                )
+                  AND (moderation_status IS NULL OR moderation_status <> 'Removed')
+                  AND (new_feedback IS NOT NULL AND TRIM(new_feedback) <> '')
+                ORDER BY id DESC
+                LIMIT 1;
+            """, [doc_id_val, doc_id_val, name_val, name_val, name_val, name_val])
+            row = cur.fetchone()
+            if row:
+                columns = [desc[0] for desc in cur.description]
+                con.close()
+                return dict(zip(columns, row))
+            con.close()
+    except Exception as exc:
+        print(f"[DB-WARN] Error fetching latest review from PostgreSQL: {exc}")
 
-    if reviews.empty or "doctor_name" not in reviews.columns:
+    # 2. Fallback to Excel files
+    try:
+        frames = _load_review_frames(_patient_review_all_paths())
+        if not frames:
+            return None
+        reviews = _merge_review_frames(frames)
+
+        if reviews.empty or "doctor_name" not in reviews.columns:
+            return None
+
+        filtered = reviews[
+            reviews["doctor_name"].astype(str).str.strip().str.lower()
+            == str(doctor_name).strip().lower()
+        ]
+        if filtered.empty:
+            return None
+        if "submitted_at" in filtered.columns:
+            filtered = filtered.sort_values(by="submitted_at", ascending=True, na_position="last")
+        latest = filtered.iloc[-1].to_dict()
+        if not latest.get("new_feedback") and latest.get("feedback"):
+            latest["new_feedback"] = latest.get("feedback", "")
+        return latest
+    except Exception:
         return None
 
-    filtered = reviews[
-        reviews["doctor_name"].astype(str).str.strip().str.lower()
-        == str(doctor_name).strip().lower()
-    ]
-    if filtered.empty:
-        return None
-    if "submitted_at" in filtered.columns:
-        filtered = filtered.sort_values(by="submitted_at", ascending=True, na_position="last")
-    latest = filtered.iloc[-1].to_dict()
-    if not latest.get("new_feedback") and latest.get("feedback"):
-        latest["new_feedback"] = latest.get("feedback", "")
-    return latest
+
+def _load_doctor_reviews(doctor_name, doctor_id=None, limit=10):
+    """Fetch recent verified patient reviews for doctor profile display."""
+    if not doctor_name and not doctor_id:
+        return []
+    try:
+        from db import get_connection, is_db_connected
+        if is_db_connected():
+            con = get_connection()
+            cur = con.cursor()
+            doc_id_val = int(doctor_id) if doctor_id else 0
+            name_val = (doctor_name or "").strip()
+            
+            cur.execute("""
+                SELECT 
+                    id, 
+                    COALESCE(new_feedback, feedback::text, '') AS new_feedback, 
+                    COALESCE(patient_rating, 5) AS patient_rating, 
+                    sentiment_label, 
+                    COALESCE(submitted_at, '') AS submitted_at,
+                    doctor_response
+                FROM "patient_reviews"
+                WHERE (
+                    (%s::bigint > 0 AND doctor_id = %s::bigint)
+                    OR (LOWER(doctor_name) = LOWER(%s) AND %s <> '')
+                    OR (LOWER(REGEXP_REPLACE(doctor_name, '[^a-zA-Z]', '', 'g')) = LOWER(REGEXP_REPLACE(%s, '[^a-zA-Z]', '', 'g')) AND %s <> '')
+                )
+                  AND (moderation_status IS NULL OR moderation_status <> 'Removed')
+                  AND (new_feedback IS NOT NULL AND TRIM(new_feedback) <> '')
+                ORDER BY id DESC
+                LIMIT %s;
+            """, [doc_id_val, doc_id_val, name_val, name_val, name_val, name_val, limit])
+            rows = cur.fetchall()
+            columns = [desc[0] for desc in cur.description]
+            con.close()
+            return [dict(zip(columns, r)) for r in rows]
+    except Exception as exc:
+        print(f"[DB-WARN] Error fetching doctor reviews from PostgreSQL: {exc}")
+    return []
 
 
 def _compute_fee_range(data_df, part_key, disease, location):
@@ -2724,7 +2805,16 @@ def doctor_detail(doctor_id):
             clean_name = "dr" + clean_name
         doctor["email"] = f"{clean_name}@hospital.com" if clean_name else "doctor@hospital.com"
 
-    latest_review = _load_latest_patient_review(doctor.get("doctor_name"))
+    latest_review = _load_latest_patient_review(doctor.get("doctor_name"), doctor_id=doctor_id)
+    doctor_reviews = _load_doctor_reviews(doctor.get("doctor_name"), doctor_id=doctor_id, limit=10)
+    if doctor_reviews:
+        try:
+            ratings = [int(r["patient_rating"]) for r in doctor_reviews if r.get("patient_rating") is not None]
+            if ratings:
+                doctor["average_rating"] = round(sum(ratings) / len(ratings), 1)
+        except Exception:
+            pass
+
     review_success = request.args.get("review_success", "")
     review_error = request.args.get("review_error", "")
 
@@ -2740,6 +2830,7 @@ def doctor_detail(doctor_id):
         "doctor_detail.html",
         doctor=doctor,
         latest_review=latest_review,
+        doctor_reviews=doctor_reviews,
         review_success=review_success,
         review_error=review_error,
         default_date=default_date,
@@ -2759,28 +2850,59 @@ def submit_doctor_review(doctor_id):
         return render_template("404.html"), 404
 
     feedback = request.form.get("feedback", "").strip()
-    rating = request.form.get("rating", "").strip()
+    rating_val = request.form.get("rating", "5").strip()
+    try:
+        rating_int = int(rating_val)
+    except (ValueError, TypeError):
+        rating_int = 5
+
     if feedback:
+        from model import predict_sentiment
+        sentiment_label = predict_sentiment(feedback)
+        user_email = session.get("user_email", "patient@example.com")
+
         review_row = {
             "submitted_at": datetime.now().isoformat(timespec="seconds"),
             "new_feedback": feedback,
-            "patient_rating": rating,
-            "doctor_id": doctor.get("doctor_id", ""),
+            "patient_rating": rating_int,
+            "doctor_id": doctor.get("doctor_id") or doctor_id,
             "doctor_name": doctor.get("doctor_name", ""),
             "hospital": doctor.get("hospital", ""),
             "specialization": doctor.get("specialization", ""),
             "department": doctor.get("department", ""),
-            "location": doctor.get("location", ""),
-            "consultation_fee": doctor.get("consultation_fee", ""),
-            "experience_years": doctor.get("experience_years", ""),
-            "average_rating": doctor.get("average_rating", ""),
-            "sentiment_label": doctor.get("sentiment_label", ""),
-            "complaint_category": doctor.get("complaint_category", ""),
+            "location": doctor.get("location", "Tamil Nadu"),
+            "consultation_fee": int(doctor.get("consultation_fee") or 500) if str(doctor.get("consultation_fee", "")).isdigit() else 500,
+            "experience_years": int(doctor.get("experience_years") or 10) if str(doctor.get("experience_years", "")).isdigit() else 10,
+            "average_rating": float(rating_int),
+            "sentiment_label": sentiment_label,
+            "complaint_category": doctor.get("complaint_category", "General"),
+            "patient_email": user_email,
         }
-        save_error = _append_patient_review(review_row)
-        if save_error:
-            return redirect(url_for("doctor_detail", doctor_id=doctor_id, review_error=save_error))
-        return redirect(url_for("doctor_detail", doctor_id=doctor_id, review_success="Feedback added successfully."))
+        from db import save_patient_review, create_notification, get_doctor_record_by_id
+        save_patient_review(review_row)
+        try:
+            _append_patient_review(review_row, sync_postgres=False)
+        except Exception:
+            pass
+
+        # Notify doctor
+        try:
+            doc_email = doctor.get("email")
+            if not doc_email:
+                d_rec = get_doctor_record_by_id(doctor_id)
+                if d_rec and d_rec.get("email"):
+                    doc_email = d_rec["email"]
+            if doc_email:
+                create_notification(
+                    doc_email, "doctor",
+                    "New Profile Review Received",
+                    f"A verified patient has reviewed your profile (Rating: {rating_int}/5 stars).",
+                    "review_received", doctor_id
+                )
+        except Exception:
+            pass
+
+        return redirect(url_for("doctor_detail", doctor_id=doctor_id, review_success="Thank you! Your feedback has been added successfully."))
 
     return redirect(url_for("doctor_detail", doctor_id=doctor_id, review_error="Feedback is required."))
 
