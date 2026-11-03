@@ -12,9 +12,21 @@ Executes all 6 testing disciplines:
 import sys
 import os
 import time
+import argparse
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
+
+parser = argparse.ArgumentParser(description="Healthcare AI System Test Suite Runner")
+parser.add_argument("--unit", action="store_true", help="Run Unit Tests only")
+parser.add_argument("--integration", "--integrate", action="store_true", help="Run Integration Tests only")
+parser.add_argument("--functional", action="store_true", help="Run Functional Tests only")
+parser.add_argument("--api", action="store_true", help="Run API Tests only")
+parser.add_argument("--model", action="store_true", help="Run Model Tests only")
+parser.add_argument("--deployment", "--deploy", action="store_true", help="Run Deployment Tests only")
+args, unknown = parser.parse_known_args()
+
+run_all = not (args.unit or args.integration or args.functional or args.api or args.model or args.deployment)
 
 class TestRunner:
     def __init__(self):
@@ -51,7 +63,7 @@ class TestRunner:
         print(f"Total Tests Executed: {self.passed + self.failed}")
         print(f"Passed: {self.passed}  |  Failed: {self.failed}")
         if self.failed == 0:
-            print("[STATUS] >>> ALL 12 SYSTEM TESTS PASSED! (100% SUCCESS RATE) <<<")
+            print(f"[STATUS] >>> ALL {self.passed} EXECUTED TEST(S) PASSED! (100% SUCCESS RATE) <<<")
         else:
             print(f"[STATUS] >>> {self.failed} TEST(S) FAILED <<<")
         print("=" * 76 + "\n")
@@ -80,8 +92,9 @@ def test_unit_2():
     assert "@" not in tok1, "Patient email must never be exposed"
     return f"anonymised_reviewer_label generated masked tokens: '{tok1}', '{tok2}'"
 
-runner.run_case("1. Unit Testing", "NLP Sentiment Classifier", test_unit_1)
-runner.run_case("1. Unit Testing", "Privacy Masking & Anonymity", test_unit_2)
+if run_all or args.unit:
+    runner.run_case("1. Unit Testing", "NLP Sentiment Classifier", test_unit_1)
+    runner.run_case("1. Unit Testing", "Privacy Masking & Anonymity", test_unit_2)
 
 # ==========================================================
 # 2. INTEGRATION TESTING
@@ -138,8 +151,9 @@ def test_int_2():
     first_doc = recs[0].get("doctor_name") or recs[0].get("doctor")
     return f"Flask Search <-> NLP Recommender matched {len(recs)} specialists (Top match: {first_doc})"
 
-runner.run_case("2. Integration Testing", "Review <-> DB Sync Pipeline", test_int_1)
-runner.run_case("2. Integration Testing", "Search <-> NLP Recommender", test_int_2)
+if run_all or args.integration:
+    runner.run_case("2. Integration Testing", "Review <-> DB Sync Pipeline", test_int_1)
+    runner.run_case("2. Integration Testing", "Search <-> NLP Recommender", test_int_2)
 
 # ==========================================================
 # 3. FUNCTIONAL TESTING
@@ -198,8 +212,9 @@ def test_func_2():
     
     return f"Doctor Care Portal consultation lifecycle (Pending -> Completed) verified for apt #{apt_id}"
 
-runner.run_case("3. Functional Testing", "Appointment Booking Lifecycle", test_func_1)
-runner.run_case("3. Functional Testing", "Doctor Consultation Lifecycle", test_func_2)
+if run_all or args.functional:
+    runner.run_case("3. Functional Testing", "Appointment Booking Lifecycle", test_func_1)
+    runner.run_case("3. Functional Testing", "Doctor Consultation Lifecycle", test_func_2)
 
 # ==========================================================
 # 4. API TESTING
@@ -221,8 +236,9 @@ def test_api_2():
     assert resp.status_code in (400, 401), f"Expected 400 or 401, got {resp.status_code}"
     return f"POST /api/reviews input validation rejected invalid payload with HTTP {resp.status_code}"
 
-runner.run_case("4. API Testing", "GET /api/doctors Catalog", test_api_1)
-runner.run_case("4. API Testing", "POST /api/reviews Validation", test_api_2)
+if run_all or args.api:
+    runner.run_case("4. API Testing", "GET /api/doctors Catalog", test_api_1)
+    runner.run_case("4. API Testing", "POST /api/reviews Validation", test_api_2)
 
 # ==========================================================
 # 5. MODEL TESTING
@@ -251,8 +267,9 @@ def test_model_2():
     assert acc == 1.0, f"Expected 1.0 accuracy, got {acc}"
     return f"Classification Quality: Accuracy={acc*100:.1f}%, F1-Score={f1:.2f}, Matrix 3x3 verified"
 
-runner.run_case("5. Model Testing", "Semantic Cosine Similarity", test_model_1)
-runner.run_case("5. Model Testing", "Classification Quality Metrics", test_model_2)
+if run_all or args.model:
+    runner.run_case("5. Model Testing", "Semantic Cosine Similarity", test_model_1)
+    runner.run_case("5. Model Testing", "Classification Quality Metrics", test_model_2)
 
 # ==========================================================
 # 6. DEPLOYMENT TESTING
@@ -279,8 +296,9 @@ def test_deploy_2():
         assert resp.status_code in (200, 302), f"Route {r} returned {resp.status_code}"
     return f"Application deployment readiness: Core routes {routes} returned HTTP 200/302 OK"
 
-runner.run_case("6. Deployment Testing", "Cloud Database Connection Probe", test_deploy_1)
-runner.run_case("6. Deployment Testing", "Web Application Route Readiness", test_deploy_2)
+if run_all or args.deployment:
+    runner.run_case("6. Deployment Testing", "Cloud Database Connection Probe", test_deploy_1)
+    runner.run_case("6. Deployment Testing", "Web Application Route Readiness", test_deploy_2)
 
 # Final Status
 success = runner.summary()
