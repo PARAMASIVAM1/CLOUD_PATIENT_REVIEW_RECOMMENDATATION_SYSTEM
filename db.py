@@ -11,6 +11,7 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
+import re
 
 # PostgreSQL Connection Configuration (Supports Local & Cloud platforms like Render)
 DATABASE_URL = os.environ.get("DATABASE_URL")
